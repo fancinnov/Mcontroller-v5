@@ -79,6 +79,7 @@ CompassCalibrator *compassCalibrator=new CompassCalibrator();
 AccelCalibrator *accelCalibrator=new AccelCalibrator();
 DataFlash *dataflash=new DataFlash();
 SDLog *sdlog=new SDLog();
+UWB *uwb=new UWB();
 
 float ahrs_pitch_rad(void){return pitch_rad;}
 float ahrs_roll_rad(void){return roll_rad;}
@@ -1154,6 +1155,19 @@ void pos_init(void){
 	pos_control->init_xy_controller(true);
 }
 
+bool uwb_init(void){
+	if(uwb->uwb_init()){
+		uwb->config_uwb(tag, 1, 1, 1, 1, 4);
+		uwb->set_anchor_positon(1, 0, 0, 0);
+		uwb->set_anchor_positon(2, 0, 420, 0);
+		uwb->set_anchor_positon(3, 420, 420, 0);
+		uwb->set_anchor_positon(4, 420, 0, 0);
+	}else{
+		return false;
+	}
+	return true;
+}
+
 void update_accel_gyro_data(void){
 
 	accel.x = icm20608_data.accf.x;//m/s/s
@@ -1542,26 +1556,30 @@ void gnss_update(void){
 	}
 }
 
+void uwb_update(void){
+	uwb->uwb_update();
+}
+
 //call at 50HZ
 bool uwb_pos_filt=false;
 static Vector3f uwb_tag_offset=Vector3f(-4.0f,0.0f, -3.0f);//cm
 void uwb_position_update(void){
 	write_gpio2(true);
-	FMU_LED6_Control(get_uwb_position);
-	if(uwb_position.x==0&&uwb_position.y==0){
+	FMU_LED6_Control(uwb->get_uwb_position);
+	if(uwb->uwb_position.x==0&&uwb->uwb_position.y==0){
 		return;
 	}
 	if(!uwb_pos_filt){
 		uwb_pos_filt=true;
 		_uwb_pos_filter.set_cutoff_frequency(50, uwb_pos_filt_hz);
 	}
-	if(get_uwb_position){
-		get_uwb_position=false;
+	if(uwb->get_uwb_position){
+		uwb->get_uwb_position=false;
 		float theta=1.65;
 		odom_offset=dcm_matrix*uwb_tag_offset;
-		odom_3d.x=uwb_position.x*cosf(theta)+uwb_position.y*sinf(theta);
-		odom_3d.y=-uwb_position.x*sinf(theta)+uwb_position.y*cosf(theta);
-		odom_3d.z=uwb_position.z;
+		odom_3d.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
+		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
+		odom_3d.z=uwb->uwb_position.z;
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
 		if(odom_3d.z>30){
 			rangefinder_state.alt_healthy=true;
@@ -2421,7 +2439,7 @@ void Logger_Data_Callback(void){
 			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_XY
-			uwb_position.x, get_pos_x(), get_vel_x(), uwb_position.y, get_pos_y(), get_vel_y());
+			get_odom_x(), get_pos_x(), get_vel_x(), get_odom_y(), get_pos_y(), get_vel_y());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_VEL_PID_XY
 			pos_control->get_vel_xy_pid().get_p().x, pos_control->get_vel_xy_pid().get_i().x, pos_control->get_vel_xy_pid().get_d().x, pos_control->get_vel_xy_pid().get_p().y, pos_control->get_vel_xy_pid().get_i().y, pos_control->get_vel_xy_pid().get_d().y);

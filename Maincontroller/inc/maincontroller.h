@@ -19,6 +19,7 @@
 #include "accel/accelCalibrator.h"
 #include "flash/flash.h"
 #include "sdlog/sdlog.h"
+#include "uwb/uwb.h"
 #include "common.h"
 
 extern ap_t *ap;

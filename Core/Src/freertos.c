@@ -301,10 +301,8 @@ void InitTask(void *argument)
   gyro_calibrate();
   attitude_init();
   pos_init();
-  if(uwb_init()){
-	uwb_mode_init(tag);
-  }else{
-	osThreadTerminate(uwbTaskHandle);
+  if(!uwb_init()){
+	  osThreadTerminate(uwbTaskHandle);
   }
   if(mode_autonav_init()){
 	  usb_printf("System initialized succeed!\r\n");
@@ -558,10 +556,6 @@ void UWBTask(void *argument)
 #if USE_UWB==0
 	osThreadTerminate(uwbTaskHandle);
 #endif
-	set_anchor_positon(1, 0, 0, 0);
-	set_anchor_positon(2, 0, 420, 0);
-	set_anchor_positon(3, 420, 420, 0);
-	set_anchor_positon(4, 420, 0, 0);
 	for(;;)
 	{
 		uwb_update();

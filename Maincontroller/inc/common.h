@@ -299,6 +299,12 @@ struct {
 	int8_t glitch_count;
 } rangefinder_state;
 
+typedef enum{
+	none=0,
+	tag=1,
+	anchor
+}uwb_modes;
+
 typedef struct{
 	// @Param: acro_y_expo
 	// @DisplayName: Acro Yaw Expo

@@ -33,7 +33,6 @@
 #include "ringbuffer.h"
 #include "config.h"
 #include "gnss/gps.h"
-#include "uwb/uwb.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -183,7 +182,7 @@ extern SPL06_Data spl06_data;
 extern MS5611_Data ms5611_data;
 extern PWM_Channel pwm_channel;
 extern ROBOT_STATE robot_state;
-extern Vector3_Float uwb_position;
+
 /****************c/c++ interface*******************************/
 void motors_init(void);
 void attitude_init(void);
@@ -194,6 +193,8 @@ void update_baro_alt(void);
 bool gyro_calibrate(void);
 void ahrs_update(void);
 void gnss_update(void);
+bool uwb_init(void);
+void uwb_update(void);
 void uwb_position_update(void);
 void ekf_baro_alt(void);
 void ekf_rf_alt(void);
