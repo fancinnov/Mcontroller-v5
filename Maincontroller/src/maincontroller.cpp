@@ -801,14 +801,6 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 	}
 }
 
-void get_mavlink_data(mavlink_channel_t chan, uint8_t *buf, uint32_t len)
-{
-	for(uint32_t i=0;i<len;i++){
-//		s2_printf("c:%d\n",buf[i]);
-		parse_mavlink_data(chan, buf[i], &msg_received, &status);
-	}
-}
-
 //系统启动后必须确保心跳函数1s运行一次
 void send_mavlink_heartbeat_data(void){
 	mavlink_message_t msg_heartbeat;
@@ -823,21 +815,21 @@ void send_mavlink_heartbeat_data(void){
 	  heartbeat.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
 	}
 	mavlink_msg_heartbeat_encode(mavlink_system.sysid, mavlink_system.compid, &msg_heartbeat, &heartbeat);
-#if COMM_0==MAV_COMM
-	  mavlink_send_buffer(MAVLINK_COMM_0, &msg_heartbeat);
-#endif
-#if COMM_1==MAV_COMM
-	  mavlink_send_buffer(MAVLINK_COMM_1, &msg_heartbeat);
-#endif
-#if COMM_2==MAV_COMM
-	  mavlink_send_buffer(MAVLINK_COMM_2, &msg_heartbeat);
-#endif
-#if COMM_3==MAV_COMM
-	  mavlink_send_buffer(MAVLINK_COMM_3, &msg_heartbeat);
-#endif
-#if COMM_4==MAV_COMM
-	  mavlink_send_buffer(MAVLINK_COMM_4, &msg_heartbeat);
-#endif
+	if ((COMM_0&COMM_MASK)==MAV_COMM){
+		mavlink_send_buffer(MAVLINK_COMM_0, &msg_heartbeat);
+	}
+	if ((COMM_1&COMM_MASK)==MAV_COMM){
+	    mavlink_send_buffer(MAVLINK_COMM_1, &msg_heartbeat);
+	}
+	if ((COMM_2&COMM_MASK)==MAV_COMM){
+	    mavlink_send_buffer(MAVLINK_COMM_2, &msg_heartbeat);
+	}
+	if ((COMM_3&COMM_MASK)==MAV_COMM){
+	    mavlink_send_buffer(MAVLINK_COMM_3, &msg_heartbeat);
+	}
+	if ((COMM_4&COMM_MASK)==MAV_COMM){
+	    mavlink_send_buffer(MAVLINK_COMM_4, &msg_heartbeat);
+	}
 	if(get_mav_yaw&&((HAL_GetTick()-time_last_attitude)>1000)){
 		//外接机载电脑连上又断了
 		get_mav_yaw=false;
@@ -1132,6 +1124,7 @@ void motors_init(void){
 
 void attitude_init(void){
 	dcm_matrix_correct.from_euler(param->horizontal_correct.value.x, param->horizontal_correct.value.y, param->horizontal_correct.value.z);
+	attitude->set_rotation_target_to_body(dcm_matrix_correct);
 	attitude->get_angle_roll_p()(param->angle_roll_p.value);
 	attitude->get_angle_pitch_p()(param->angle_pitch_p.value);
 	attitude->get_angle_yaw_p()(param->angle_yaw_p.value);
@@ -1157,7 +1150,7 @@ void pos_init(void){
 
 bool uwb_init(void){
 	if(uwb->uwb_init()){
-		uwb->config_uwb(tag, 1, 1, 1, 1, 4);
+		uwb->config_uwb(tag, 1, 1, 1, 2, 4);
 		uwb->set_anchor_positon(1, 0, 0, 0);
 		uwb->set_anchor_positon(2, 0, 420, 0);
 		uwb->set_anchor_positon(3, 420, 420, 0);
@@ -1440,6 +1433,7 @@ void ahrs_update(void){
 			param->horizontal_correct.value.z=0;
 			dataflash->set_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
 			dcm_matrix_correct.from_euler(param->horizontal_correct.value.x, param->horizontal_correct.value.y, param->horizontal_correct.value.z);
+			attitude->set_rotation_target_to_body(dcm_matrix_correct);
 			horizon_correct=false;
 			roll_sum=0;
 			pitch_sum=0;
@@ -1456,7 +1450,6 @@ void ahrs_update(void){
 
 		//由ahrs的四元数推出旋转矩阵用于控制
 		ahrs->quaternion2.rotation_matrix(dcm_matrix);
-//		dcm_matrix*=dcm_matrix_correct;
 		dcm_matrix.normalize();
 		attitude->set_rotation_body_to_ned(dcm_matrix);
 		gyro_ef=dcm_matrix*gyro_filt;
@@ -1581,7 +1574,7 @@ void uwb_position_update(void){
 		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
 		odom_3d.z=uwb->uwb_position.z;
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
-		if(odom_3d.z>30){
+		if(odom_3d.z>50){
 			rangefinder_state.alt_healthy=true;
 			rangefinder_state.alt_cm=odom_3d.z;
 			rangefinder_state.last_healthy_ms=HAL_GetTick();

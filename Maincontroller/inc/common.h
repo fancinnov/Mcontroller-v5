@@ -77,10 +77,10 @@
 #define POSCONTROL_ACC_Z_IMAX                 500     // vertical acceleration controller IMAX gain default
 #define POSCONTROL_ACC_Z_FILT_HZ              20.0f   // vertical acceleration controller input filter default
 #define POSCONTROL_ACC_Z_DT                   0.0025f // vertical acceleration controller dt default
-#define POSCONTROL_POS_XY_P                   0.3f    // horizontal position controller P gain default 1.0
-#define POSCONTROL_VEL_XY_P                   1.0f    // horizontal velocity controller P gain default 2.0
-#define POSCONTROL_VEL_XY_I                   0.8f    // horizontal velocity controller I gain default 1.0
-#define POSCONTROL_VEL_XY_D                   0.45f    // horizontal velocity controller D gain default 0.5
+#define POSCONTROL_POS_XY_P                   0.5f    // horizontal position controller P gain default 1.0
+#define POSCONTROL_VEL_XY_P                   0.6f    // horizontal velocity controller P gain default 2.0
+#define POSCONTROL_VEL_XY_I                   0.15f    // horizontal velocity controller I gain default 1.0
+#define POSCONTROL_VEL_XY_D                   0.15f    // horizontal velocity controller D gain default 0.5
 #define POSCONTROL_VEL_XY_IMAX                200.0f  // horizontal velocity controller IMAX gain default
 #define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter
 #define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D
@@ -130,7 +130,7 @@
 #endif
 
 #ifndef PILOT_TKOFF_ALT_DEFAULT
- # define PILOT_TKOFF_ALT_DEFAULT           200     // default final alt above home for pilot initiated takeoff
+ # define PILOT_TKOFF_ALT_DEFAULT           100     // default final alt above home for pilot initiated takeoff
 #endif
 
 #ifndef LAND_RANGEFINDER_MIN_ALT_CM

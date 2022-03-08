@@ -207,7 +207,6 @@ void update_land_detector(void);
 void throttle_loop(void);
 void get_tfmini_data(uint8_t buf);
 void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t* msg_received, mavlink_status_t* status);
-void get_mavlink_data(mavlink_channel_t chan, uint8_t *buf, uint32_t len);
 void send_mavlink_data(mavlink_channel_t chan);
 void send_mavlink_param_list(mavlink_channel_t chan);
 void send_mavlink_heartbeat_data(void);
@@ -369,6 +368,28 @@ void Flash_Write_Data(uint32_t addr, uint8_t *data, uint8_t length);
 void Flash_Read_Data(uint32_t addr, uint8_t *data, uint8_t length);
 
 /****serial port and usb port****/
+extern uint8_t COMM_0, COMM_1, COMM_2, COMM_3, COMM_4;
+/***************usb+串口配置****************
+ * *************comm0:USB口***************
+ * *************comm1:Serial串口1**********
+ * *************comm2:Serial串口2**********
+ * *************comm3:Serial串口3**********
+ * *************comm4:Serial串口4**********
+ * @param:
+ * comm0~comm4可以配置为下列可选参数,参数及其含义如下：
+ * (1)DEV_COMM 		自定义模式
+ * (2)MAV_COMM  	Mavlink模式
+ * (3)GPS_COMM  	GPS模式
+ * (4)TFMINI_COMM  	TFmini激光测距仪
+ * **************************************/
+void config_comm(uint8_t comm0, uint8_t comm1, uint8_t comm2, uint8_t comm3, uint8_t comm4);
+/**
+  * @brief  采用缓冲的方式从usb或串口发送数据（强烈推荐采用这种方式）
+  * @param  chan: 端口号（MAVLINK_COMM_0为USB;MAVLINK_COMM_1~MAVLINK_COMM_4为串口1~4）
+  * @param  buf: 待发送数据的数组起始地址
+  * @param  len: 待发送数据的数组长度
+  * @retval None
+  */
 void comm_send_buf(mavlink_channel_t chan, uint8_t* buf, uint16_t len);
 
 //usb port
@@ -416,28 +437,28 @@ void s4_printf_dir(const char* s, ...);
 /**
   * @brief  采用中断方式从串口1发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的数组起始地址
+  * @param  size: 待发送数据的长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s1_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口2发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的数组起始地址
+  * @param  size: 待发送数据的长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s2_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口3发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的数组起始地址
+  * @param  size: 待发送数据的长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s3_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口4发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的数组起始地址
+  * @param  size: 待发送数据的长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s4_send_buf(uint8_t* buf, uint16_t size);
@@ -540,6 +561,7 @@ void FMU_PWM_Set_Output_Disable(void);//调用这个函数之后电机、舵机P
  * 				GPIO_MODE_OUTPUT_PP(推挽输出模式);
  * 				GPIO_MODE_OUTPUT_OD(开漏输出模式);
  * 				GPIO_MODE_INPUT(输入模式);
+ * 				GPIO_MODE_ANALOG(模拟模式)
  * 				GPIO_MODE_IT_RISING(中断模式|上升沿触发);
  *				GPIO_MODE_IT_FALLING(中断模式|下降沿触发);
  *				GPIO_MODE_IT_RISING_FALLING(中断模式|双边沿触发);
@@ -600,7 +622,7 @@ void SBUS_RX_InterruptHandler(void);
 HAL_StatusTypeDef sbus_output_buf(uint8_t* buf, uint16_t size);
 HAL_StatusTypeDef sbus_output_buf_delayms(uint8_t* buf, uint16_t size, uint32_t timeout);
 void RC_Input_Init(void);//初始化所有遥控接收机（PPM、SBUS、WIFI）
-void RC_Input_Loop(void);//接收遥控器数据
+void RC_Input_Loop(uint8_t mode);//接收遥控器数据
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
 extern uint16_t *mav_channels_in;
 

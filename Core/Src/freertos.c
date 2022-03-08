@@ -107,7 +107,7 @@ const osThreadAttr_t mavSendTask_attributes = {
 osThreadId_t loop50hzTaskHandle;
 const osThreadAttr_t loop50hzTask_attributes = {
   .name = "loop50hzTask",
-  .stack_size = 300 * 4,
+  .stack_size = 400 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for sdLogTask */
@@ -128,7 +128,7 @@ const osThreadAttr_t gpsTask_attributes = {
 osThreadId_t uwbTaskHandle;
 const osThreadAttr_t uwbTask_attributes = {
   .name = "uwbTask",
-  .stack_size = 500 * 4,
+  .stack_size = 800 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 
@@ -267,7 +267,7 @@ void InitTask(void *argument)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN InitTask */
   sense_adc1_value=(uint16_t*)pvPortMalloc(2*sizeof(uint16_t));
-
+  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM|MLINK_ESP);
   TxBuffer_comm0=(uint8_t*)pvPortMalloc(USB_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm1=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm2=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
@@ -331,7 +331,6 @@ void Loop200hzTask(void *argument)
   {
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
 	  MAG_Get_Data();
-	  comm_callback();
 	  /***Do not change code above and add new code below***/
   }
   /* USER CODE END Loop200hzTask */
@@ -479,7 +478,8 @@ void Loop50hzTask(void *argument)
   for(;;)
   {
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
-	  RC_Input_Loop();
+	  comm_callback();
+	  RC_Input_Loop(RC_INPUT_SBUS);
 	  adc_update();
 	  uwb_position_update();
 	  /***Do not change code above and add new code below***/

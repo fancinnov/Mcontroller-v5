@@ -141,7 +141,7 @@ private:
 	uint32_t frame_len = 0;
 	uint32_t dis_time=0,tag_time=0;
 	bool last_tag=false;
-
+	bool last_last_tag=false;
 	uwb_states uwb_state=idle;
 	uwb_modes uwb_mode=none;
 
