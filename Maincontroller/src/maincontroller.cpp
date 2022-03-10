@@ -37,6 +37,7 @@ static bool get_gnss_location=false;
 static bool get_rangefinder_data=false;
 static bool get_mav_yaw=false, get_odom_xy=false;
 static bool mag_corrected=false, mag_correcting=false;
+static bool use_uwb_pos_z=false;
 
 static float accel_filt_hz=10;//HZ
 static float gyro_filt_hz=20;//HZ
@@ -289,8 +290,6 @@ void get_tfmini_data(uint8_t buf)
 }
 
 //接收
-static mavlink_message_t msg_received;
-static mavlink_status_t status;
 static uint32_t time_last_heartbeat[5]={0};
 static uint32_t time_last_attitude=0;
 static mavlink_heartbeat_t heartbeat;
@@ -349,17 +348,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 								param->accel_offsets.value={0.0f,0.0f,0.0f};
 								param->accel_diagonals.value={1.0f,1.0f,1.0f};
 								param->accel_offdiagonals.value={0.0f,0.0f,0.0f};
-							}else if(is_equal(cmd.param2,1.0f)){		// level
-								accelCalibrator->collect_sample();
-							}else if(is_equal(cmd.param2,2.0f)){		// on its LEFT side
-								accelCalibrator->collect_sample();
-							}else if(is_equal(cmd.param2,3.0f)){		// on its RIGHT side
-								accelCalibrator->collect_sample();
-							}else if(is_equal(cmd.param2,4.0f)){		// nose DOWN
-								accelCalibrator->collect_sample();
-							}else if(is_equal(cmd.param2,5.0f)){		// nose UP
-								accelCalibrator->collect_sample();
-							}else if(is_equal(cmd.param2,6.0f)){		// on its BACK
+							}else {
 								accelCalibrator->collect_sample();
 							}
 						}else if(is_equal(cmd.param1,2.0f)){			//start compass calibrate
@@ -845,6 +834,7 @@ void send_mavlink_commond_ack(mavlink_channel_t chan, MAV_CMD mav_cmd, MAV_CMD_A
 	mavlink_send_buffer(chan, &msg_command_ack);
 }
 
+static uint8_t accel_cali_num=0;
 void send_mavlink_data(mavlink_channel_t chan)
 {
 	if((HAL_GetTick()-time_last_heartbeat[(uint8_t)chan])>5000){
@@ -864,6 +854,25 @@ void send_mavlink_data(mavlink_channel_t chan)
 	attitude_rpy.time_boot_ms=time;
 	mavlink_msg_attitude_encode(mavlink_system.sysid, mavlink_system.compid, &msg_attitude_rpy, &attitude_rpy);
 	mavlink_send_buffer(chan, &msg_attitude_rpy);
+
+	//加速度计校准
+	if(!accel_cal_succeed){
+		accel_cali_num=0;
+		command_long.command=MAV_CMD_PREFLIGHT_CALIBRATION;
+		command_long.param1=1.0f;
+		command_long.param2=(float)accelCalibrator->get_num_samples_collected()+1;
+		mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+		mavlink_send_buffer(chan, &msg_command_long);
+	}else{
+		if((accelCalibrator->get_num_samples_collected()==ACCELCAL_VEHICLE_POS_BACK)&&(accel_cali_num<50)){
+			command_long.command=MAV_CMD_PREFLIGHT_CALIBRATION;
+			command_long.param1=1.0f;
+			command_long.param2=(float)accelCalibrator->get_num_samples_collected()+1;
+			mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+			mavlink_send_buffer(chan, &msg_command_long);
+			accel_cali_num++;
+		}
+	}
 
 	//罗盘校准
 	if(mag_correcting){
@@ -1150,7 +1159,7 @@ void pos_init(void){
 
 bool uwb_init(void){
 	if(uwb->uwb_init()){
-		uwb->config_uwb(tag, 1, 1, 1, 2, 4);
+		uwb->config_uwb(tag, 1, 1, 1, 1, 4);
 		uwb->set_anchor_positon(1, 0, 0, 0);
 		uwb->set_anchor_positon(2, 0, 420, 0);
 		uwb->set_anchor_positon(3, 420, 420, 0);
@@ -1572,11 +1581,10 @@ void uwb_position_update(void){
 		odom_offset=dcm_matrix*uwb_tag_offset;
 		odom_3d.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
 		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
-		odom_3d.z=uwb->uwb_position.z;
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
-		if(odom_3d.z>50){
+		if(uwb->uwb_position.z>50&&use_uwb_pos_z){
 			rangefinder_state.alt_healthy=true;
-			rangefinder_state.alt_cm=odom_3d.z;
+			rangefinder_state.alt_cm=uwb->uwb_position.z;
 			rangefinder_state.last_healthy_ms=HAL_GetTick();
 		}else{
 			rangefinder_state.alt_healthy=false;
@@ -1939,6 +1947,7 @@ void takeoff_start(float alt_cm)
     _takeoff_max_speed = speed;
     _takeoff_start_ms = HAL_GetTick();
     _takeoff_alt_delta = alt_cm;
+    use_uwb_pos_z=false;
 }
 
 bool takeoff_triggered( float target_climb_rate)
@@ -1960,6 +1969,7 @@ void takeoff_stop()
 	_takeoff=false;
 	_takeoff_running = false;
 	_takeoff_start_ms = 0;
+	use_uwb_pos_z=true;
 }
 
 // returns pilot and takeoff climb rates
