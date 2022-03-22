@@ -230,7 +230,6 @@ void parse_comm3_data(uint8_t data);
 void parse_comm4_data(uint8_t data);
 void debug(void);
 /****************c/c++ interface*******************************/
-
 bool get_task_initialed(void);
 
 void comm_callback(void);
@@ -621,10 +620,13 @@ void PPM_RX_InterruptHandler(void);
 void SBUS_RX_InterruptHandler(void);
 HAL_StatusTypeDef sbus_output_buf(uint8_t* buf, uint16_t size);
 HAL_StatusTypeDef sbus_output_buf_delayms(uint8_t* buf, uint16_t size, uint32_t timeout);
-void RC_Input_Init(void);//初始化所有遥控接收机（PPM、SBUS、WIFI）
-void RC_Input_Loop(uint8_t mode);//接收遥控器数据
+void RC_Input_Init(uint8_t mode);//初始化遥控接收机（PPM/SBUS）
+void RC_Input_Loop(void);//接收遥控器数据
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
 extern uint16_t *mav_channels_in;
+
+//初始化wifi模组
+void wifi_init(void);
 
 //设置8个通道的遥控器信号（系统已经调用过了，一般情况下无需再次调用）
 //@range: _channel_roll/_channel_pitch/_channel_yaw:-1.0~1.0; _channel_throttle:0~1.0;

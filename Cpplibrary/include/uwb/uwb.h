@@ -23,6 +23,7 @@ public:
 	/// Constructor
 	UWB();
 	bool get_uwb_position=false;
+	int Anchordistance[4];
 	Vector3f uwb_position;
 	bool uwb_init(void);
 	void uwb_update(void);
@@ -131,7 +132,6 @@ private:
 	uint8_t Semaphore[255];
 	vec3d AnchorList[4];
 	vec3d tag_best_solution;
-	int Anchordistance[4];
 
 	uint8_t anchor_index = 0;
 	uint8_t tag_index = 0;

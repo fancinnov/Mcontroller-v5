@@ -19,7 +19,7 @@
 #include <limits>
 #include <type_traits>
 #include "hal.h"
-#include "common/common.h"
+#include "math/common.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vectorN.h"

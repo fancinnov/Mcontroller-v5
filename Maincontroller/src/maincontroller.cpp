@@ -903,14 +903,14 @@ void send_mavlink_data(mavlink_channel_t chan)
 
 	//电脑端地面站需要显示遥控信号
 	if(chan==gcs_channel){
-		rc_channels_t.chan1_raw=get_channel_roll();
-		rc_channels_t.chan2_raw=get_channel_pitch();
-		rc_channels_t.chan3_raw=get_channel_throttle();
-		rc_channels_t.chan4_raw=get_channel_yaw();
-		rc_channels_t.chan5_raw=get_channel_5();
-		rc_channels_t.chan6_raw=get_channel_6();
-		rc_channels_t.chan7_raw=get_channel_7();
-		rc_channels_t.chan8_raw=get_channel_8();
+		rc_channels_t.chan1_raw=input_channel_roll();
+		rc_channels_t.chan2_raw=input_channel_pitch();
+		rc_channels_t.chan3_raw=input_channel_throttle();
+		rc_channels_t.chan4_raw=input_channel_yaw();
+		rc_channels_t.chan5_raw=input_channel_5();
+		rc_channels_t.chan6_raw=input_channel_6();
+		rc_channels_t.chan7_raw=input_channel_7();
+		rc_channels_t.chan8_raw=input_channel_8();
 		rc_channels_t.chancount=RC_INPUT_CHANNELS;
 		rc_channels_t.rssi=254;
 		mavlink_msg_rc_channels_encode(mavlink_system.sysid, mavlink_system.compid, &msg_rc_channels, &rc_channels_t);
@@ -1161,9 +1161,9 @@ bool uwb_init(void){
 	if(uwb->uwb_init()){
 		uwb->config_uwb(tag, 1, 1, 1, 1, 4);
 		uwb->set_anchor_positon(1, 0, 0, 0);
-		uwb->set_anchor_positon(2, 0, 420, 0);
-		uwb->set_anchor_positon(3, 420, 420, 0);
-		uwb->set_anchor_positon(4, 420, 0, 0);
+		uwb->set_anchor_positon(2, 0, 160, 0);
+		uwb->set_anchor_positon(3, 160, 0, 0);
+		uwb->set_anchor_positon(4, 0, 0, 165);
 	}else{
 		return false;
 	}
@@ -1564,7 +1564,6 @@ void uwb_update(void){
 
 //call at 50HZ
 bool uwb_pos_filt=false;
-static Vector3f uwb_tag_offset=Vector3f(-4.0f,0.0f, -3.0f);//cm
 void uwb_position_update(void){
 	write_gpio2(true);
 	FMU_LED6_Control(uwb->get_uwb_position);
@@ -1578,7 +1577,6 @@ void uwb_position_update(void){
 	if(uwb->get_uwb_position){
 		uwb->get_uwb_position=false;
 		float theta=1.65;
-		odom_offset=dcm_matrix*uwb_tag_offset;
 		odom_3d.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
 		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
@@ -2048,6 +2046,9 @@ void rate_controller_run(void){
 //  returns false if arming failed because of pre-arm checks, arming checks or a gyro calibration failure
 bool arm_motors(void)
 {
+	if (!motors->get_interlock()) {
+		return false;
+	}
     static bool in_arm_motors = false;
 
     // exit immediately if already in this function
@@ -2249,7 +2250,7 @@ void arm_motors_check(void){
 	static int16_t arming_counter;
 	float throttle=get_channel_throttle();
 	// ensure throttle is down
-	if (throttle > 0) {
+	if (throttle > 0.01) {
 		arming_counter = 0;
 		return;
 	}
@@ -2470,5 +2471,58 @@ void Logger_Update(void){
  * *******************code for test and debug*********************
  *****************************************************************/
 void debug(void){
-//	usb_printf("hello, Mcontroller\n");
+//	usb_printf("ux:%f|uy:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
+//	usb_printf("gps_position lat:%lf ,lon:%lf ,alt:%lf \r\n" , (double)gps_position->lat/10000000.0,(double)gps_position->lon/10000000.0,(double)gps_position->alt/1000000.0);
+//	usb_printf("l:%d|%d|%d\n",*(__IO uint8_t*)((uint32_t)0x081D0000),*(__IO uint8_t*)((uint32_t)0x081D0001),*(__IO uint8_t*)((uint32_t)0x081D0002));
+//	usb_printf("l:%d\n",dataflash->get_addr_num_max());
+//	dataflash->get_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
+//	usb_printf("p:%f,%f,%f\n",uwb->uwb_position.x, uwb->uwb_position.y, uwb->uwb_position.z);
+//	dataflash->set_param_float(param->acro_yaw_p.num, 3.6);
+//	dataflash->get_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
+//	usb_printf("%f\n",param->acro_yaw_p.value);
+//	usb_printf("%f\n",motors->get_throttle());
+//	usb_printf("%f|%f\n",param.throttle_filt.value,param.angle_max.value);
+//	usb_printf("x:%f ",param->accel_offsets.value.x);
+//	usb_printf("lat:%d \n",gps_position->lat);
+//	usb_printf("y:%f ",param->accel_offsets.value.y);
+//	usb_printf("z:%f\n",param->accel_offsets.value.z);
+//	usb_printf("baro:%f,",spl06_data.baro_alt);
+//	usb_printf("temp:%f\n",spl06_data.temp);
+//	usb_printf("alt:%f\n",get_alt_target());
+//	float cos_tilt = ahrs_cos_pitch() * ahrs_cos_roll();
+//	usb_printf("%f|%f|%f\n", pitch_deg, roll_deg, yaw_deg);
+//	usb_printf("l:%f\n",get_mag_filt().length());
+//	usb_printf("v:%f,i:%f\n",get_batt_volt(),get_batt_current());
+//	usb_printf("gx:%f|gy:%f|gz:%f\n", gyro_filt.x, gyro_filt.y, gyro_filt.z);
+//	usb_printf("mx:%f|my:%f|mz:%f\n", mag_filt.x, mag_filt.y, mag_filt.z);
+//	usb_printf("x:%f,y:%f,z:%f\n",gyro_offset.x,gyro_offset.y,gyro_offset.z);
+//	usb_printf("accelx:%f,accely:%f,accelz:%f\n",accel_correct.x,accel_correct.y,accel_correct.z);
+//	usb_printf("accelx:%f,accely:%f,accelz:%f\n ",accel_filt.x,accel_filt.y,accel_filt.z);
+//	usb_printf("accelx:%f,accely:%f,accelz:%f\n ",accel_ef.x,accel_ef.y,accel_ef.z);
+//	usb_printf("ax:%f, ay:%f, az:%f, accelx:%f,accely:%f,accelz:%f\n ",dcm_matrix.a.x, dcm_matrix.a.y, dcm_matrix.a.z, accel_filt.x,accel_filt.y,accel_filt.z);
+//	usb_printf("ax:%f,ay:%f,az:%f\n",mpu9250_data.accf.x,mpu9250_data.accf.y,mpu9250_data.accf.z);
+//	usb_printf("%f,%f,%f\n",mpu9250_data.gyrof.x, mpu9250_data.gyrof.y, mpu9250_data.gyrof.z);
+//	usb_printf("%f,%f,%f\n",qmc5883_data.magf.x, qmc5883_data.magf.y, qmc5883_data.magf.z);
+//	usb_printf("hover:%f|%f\n",param->t_hover_update_min.value,param->t_hover_update_max.value);
+//	usb_printf("m:%d|%d\n",param.motor_type.value, param.robot_type.value);
+//	usb_printf("pos_x:%f|%f|%f|%f,pos_y:%f|%f|%f|%f\n",get_pos_x(),get_vel_x(),ned_current_pos.x, ned_current_vel.x,get_pos_y(),get_vel_y(),ned_current_pos.y,ned_current_vel.y);
+//	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
+//	usb_printf("vib:%f\n", param->vib_land.value);
+//	s2_printf("x:%f,y:%f\n", x_target, y_target);
+//	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
+//	usb_printf("ax:%f\n",param.accel_offdiagonals.value.x);
+//	usb_printf("z:%f\n",get_rangefinder_alt());
+//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
+//	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
+//	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());
+//	usb_printf("yaw:%f,yaw_throttle:%f\n",yaw_deg,motors->get_yaw());
+//	usb_printf("c:%f,p:%f\n",compass_calibrate(),param.mag_offsets.value.x);
+//	usb_printf("g:%f\n",param.angle_roll_p.value);
+//	usb_printf("ox:%f, oy:%f, oz:%f\n",param.accel_offsets.value.x, param.accel_offsets.value.y, param.accel_offsets.value.z);
+//	usb_printf("dx:%f, dy:%f, dz:%f\n",param.mag_diagonals.value.x, param.mag_diagonals.value.y, param.mag_diagonals.value.z);
+//	usb_printf("odx:%f, ody:%f, odz:%f\n",param.mag_offdiagonals.value.x, param.mag_offdiagonals.value.y, param.mag_offdiagonals.value.z);
+//	usb_printf("motor:%d|%d|%d|%d\n",pwm_channel.motor[0], motors->get_armed(), get_soft_armed(), motors->get_interlock());
+//	s2_printf("%d\n",HAL_GetTick());
+//  usb_printf("vib_value:%f, vib_angle:%f\n", get_vib_value(), get_vib_angle_z());
+//	FMU_Servo_Set_Value(1,1000);
 }

@@ -114,7 +114,7 @@ const osThreadAttr_t loop50hzTask_attributes = {
 osThreadId_t sdLogTaskHandle;
 const osThreadAttr_t sdLogTask_attributes = {
   .name = "sdLogTask",
-  .stack_size = 1000 * 4,
+  .stack_size = 1200 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for gpsTask */
@@ -293,7 +293,8 @@ void InitTask(void *argument)
   usb_printf("\r\nSystem initializing ...\r\n");
   FRAM_Init();
   update_dataflash();
-  RC_Input_Init();
+  RC_Input_Init(RC_INPUT_SBUS);
+  wifi_init();
   motors_init();
   IMU_Init();
   MAG_Init();
@@ -479,7 +480,7 @@ void Loop50hzTask(void *argument)
   {
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
 	  comm_callback();
-	  RC_Input_Loop(RC_INPUT_SBUS);
+	  RC_Input_Loop();
 	  adc_update();
 	  uwb_position_update();
 	  /***Do not change code above and add new code below***/

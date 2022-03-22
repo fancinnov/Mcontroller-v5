@@ -128,10 +128,4 @@ struct PACKED Location {
 ///
 //@{
 
-/*
-  Return true if value is between lower and upper bound inclusive.
-  False otherwise.
-*/
-bool is_bounded_int32(int32_t value, int32_t lower_bound, int32_t upper_bound);
-
 #endif /* __COMMON_H */
