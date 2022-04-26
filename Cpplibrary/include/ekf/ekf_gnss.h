@@ -13,7 +13,7 @@
 
 class EKF_GNSS{
 public:
-	EKF_GNSS(float dt, float Q1, float Q2, float R1, float R2, float R3, float R4);
+	EKF_GNSS(float dt, float Q1, float Q2, float Q3, float Q4, float R1, float R2, float R3, float R4);
 	void update(bool &get_gnss, float gnss_pos_x, float gnss_pos_y, float gnss_vel_x, float gnss_vel_y);
 	bool is_initialed(void){return initialed;}
 	void reset(void){
@@ -22,7 +22,7 @@ public:
 	float pos_x=0, pos_y=0, vel_x=0, vel_y=0;
 
 private:
-	float Qt[2]={1.0f,1.0f};//观测数据的方差
+	float Qt[4]={1.0f,1.0f,1.0f,1.0f};//观测数据的方差
 	float T_odom=0.0025; //2.5ms
 	bool initialed=false;
 	/*****************x-axis******************/

@@ -56,6 +56,7 @@ private:
 		release,
 		release_confirm,
 		release_wait,
+		time,
 		statistics
 	}uwb_states;
 
@@ -69,19 +70,20 @@ private:
 	 *     - byte 5: frame type.
 	 *     - middle bytes: data.
 	 *     - last two bytes: frame check-sum, automatically set by DW1000.  */
-	uint8_t rx_poll_msg[8] =  {0x41, 0x88, 0, 0x0, 0xDE, 0x21, 0, 0};
-	uint8_t tx_resp_msg[11] =  {0x41, 0x88, 0, 0x0, 0xDE, 0x10, 0x02, 0, 0, 0, 0};
-	uint8_t rx_final_msg[20] = {0x41, 0x88, 0, 0x0, 0xDE, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	uint8_t distance_msg[11] = {0x41, 0x88, 0, 0x0, 0xDE, 0xAA, 0, 0, 0, 0, 0};
-	uint8_t tx_poll_msg[8] =  {0x41, 0x88, 0, 0x0, 0xDE, 0x21, 0, 0};
-	uint8_t rx_resp_msg[11] =  {0x41, 0x88, 0, 0x0, 0xDE, 0x10, 0x02, 0, 0, 0, 0};
-	uint8_t tx_final_msg[20] = {0x41, 0x88, 0, 0x0, 0xDE, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	uint8_t angle_msg[27] =    {0x41, 0x88, 0, 0x0, 0xDE, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	uint8_t Semaphore_Release[8] =    			{0x41, 0x88, 0, 0x0, 0xDE, 0xE0, 0, 0};
-	uint8_t Tag_Statistics[9] =                   {0x41, 0x88, 0, 0x0, 0xDE, 0xE1, 0, 0, 0};
-	uint8_t Master_Release_Semaphore[9] =         {0x41, 0x88, 0, 0x0, 0xDE, 0xE2, 0, 0, 0};
-	uint8_t Tag_Statistics_response[9] =          {0x41, 0x88, 0, 0x0, 0xDE, 0xE3, 0, 0, 0};
-	uint8_t Master_Release_Semaphore_comfirm[9] = {0x41, 0x88, 0, 0x0, 0xDE, 0xE4, 0, 0, 0};
+	uint8_t rx_poll_msg[8] =  	{0x41, 0x88, 0, 0x0, 0xDE, 0x21, 0, 0};
+	uint8_t tx_resp_msg[11] =  	{0x41, 0x88, 0, 0x0, 0xDE, 0x10, 0x02, 0, 0, 0, 0};
+	uint8_t rx_final_msg[20] = 	{0x41, 0x88, 0, 0x0, 0xDE, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t distance_msg[15] = 	{0x41, 0x88, 0, 0x0, 0xDE, 0xAA, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t tx_poll_msg[8] =  	{0x41, 0x88, 0, 0x0, 0xDE, 0x21, 0, 0};
+	uint8_t rx_resp_msg[11] =  	{0x41, 0x88, 0, 0x0, 0xDE, 0x10, 0x02, 0, 0, 0, 0};
+	uint8_t tx_final_msg[20] = 	{0x41, 0x88, 0, 0x0, 0xDE, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t time_msg[13] =  	{0x41, 0x88, 0, 0x0, 0xDE, 0x36, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t angle_msg[27] =    	{0x41, 0x88, 0, 0x0, 0xDE, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t Semaphore_Release[9] =    				{0x41, 0x88, 0, 0x0, 0xDE, 0xE0, 0, 0, 0};
+	uint8_t Tag_Statistics[9] =                   	{0x41, 0x88, 0, 0x0, 0xDE, 0xE1, 0, 0, 0};
+	uint8_t Master_Release_Semaphore[9] =         	{0x41, 0x88, 0, 0x0, 0xDE, 0xE2, 0, 0, 0};
+	uint8_t Tag_Statistics_response[9] =          	{0x41, 0x88, 0, 0x0, 0xDE, 0xE3, 0, 0, 0};
+	uint8_t Master_Release_Semaphore_comfirm[9] = 	{0x41, 0x88, 0, 0x0, 0xDE, 0xE4, 0, 0, 0};
 
 	/* Frame sequence number, incremented after each transmission. */
 	uint8_t frame_seq_nb = 0;
@@ -103,6 +105,14 @@ private:
 	uint64_t resp_rx_ts_tag;
 	uint64_t final_tx_ts_tag;
 
+	uint64_t time_rx_ts;
+	uint64_t time_tx_ts;
+	uint64_t time_tx_ts_real;
+	uint64_t time_sys_ts;
+
+	uint32_t time_rx_ts_32;
+	uint32_t time_tx_ts_32;
+
 	/* Hold copies of computed time of flight and distance here for reference, so reader can examine it at a breakpoint. */
 	double tof;
 	double distance;
@@ -115,6 +125,7 @@ private:
 	void Semaphore_Init(void);
 	int Sum_Tag_Semaphore_request(void);
 	/* Declaration of static functions. */
+	uint64_t get_sys_timestamp_u64(void);
 	uint64_t get_tx_timestamp_u64(void);
 	uint64_t get_rx_timestamp_u64(void);
 	void final_msg_get_ts(const uint8_t *ts_field, uint32_t *ts);
@@ -154,6 +165,13 @@ private:
 	uint32_t resp_tx_time;
 	int ret;
 	int temp;
+	uint32_t delta_ts;
+	uint32_t delta_ts_anchor[4];
+	uint8_t delta_ts_anchor0_num=0;
+	uint8_t delta_ts_anchor1_num=0;
+	uint8_t delta_ts_anchor2_num=0;
+	uint8_t delta_ts_anchor3_num=0;
+	bool get_all_tag_delta_ts=false;
 };
 
 #endif

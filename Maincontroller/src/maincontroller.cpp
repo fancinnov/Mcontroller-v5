@@ -30,6 +30,7 @@ static bool initial_baro=false;
 static bool calibrate_failure=false;
 static bool initial_accel_cal=false;
 static bool horizon_correct=false;
+static bool reset_horizon_integrator=false;
 static bool ahrs_healthy=false;
 static bool initial_compass_cal=false;
 static bool initial_gnss=false;
@@ -45,6 +46,8 @@ static float mag_filt_hz=2.5;//HZ
 static float baro_filt_hz=5;//HZ
 static float accel_ef_filt_hz=10;//HZ
 static float uwb_pos_filt_hz=5;//HZ
+static float odom_pos_filt_hz=5;//HZ
+static float odom_vel_filt_hz=5;//HZ
 static float pitch_rad_raw=0 , roll_rad_raw=0 , yaw_rad_raw=0;
 static float pitch_rad=0 , roll_rad=0 , yaw_rad=0;
 static float pitch_deg=0 , roll_deg=0 , yaw_deg=0;
@@ -59,20 +62,22 @@ static Vector3f accel_filt, gyro_filt, mag_filt;				//滤波优化后的加速�
 static Vector3f accel_ef, gyro_ef;								//地球坐标系下的三轴加速度、角速度
 static Vector3f gyro_offset;
 static Vector3f odom_3d,odom_offset;
+static Vector2f odom_vel_xy_filt,odom_pos_xy_filt;
 static Location gnss_origin_pos, gnss_current_pos;
 static Vector3f ned_current_pos, ned_current_vel;
 static Matrix3f dcm_matrix, dcm_matrix_correct;										//旋转矩阵
 static LowPassFilter2pVector3f	_accel_filter, _gyro_filter, _accel_ef_filter;
 static LowPassFilter2pFloat _baro_alt_filter;
 static LowPassFilterVector3f _mag_filter, _uwb_pos_filter;
+static LowPassFilterVector2f _odom_vel_filter, _odom_pos_filter;
 
 parameter *param=new parameter();
 ap_t *ap=new ap_t();
 AHRS *ahrs=new AHRS(_dt);
 EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 0.000016, 0.000016);
 EKF_Rangefinder *ekf_rangefinder=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
-EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.25, 0.25, 0.0004, 0.04, 0.0004, 0.04);
-EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 1.0, 1.0, 0.0000001, 0.001, 0.0000001, 0.001);
+EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
+EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 1.0, 1.0, 1.0, 1.0, 0.0000001, 0.001, 0.0000001, 0.001);
 Motors *motors=new Motors(1/_dt);
 Attitude_Multi *attitude=new Attitude_Multi(*motors, gyro_filt, _dt);
 PosControl *pos_control=new PosControl(*motors, *attitude);
@@ -161,7 +166,7 @@ void update_dataflash(void){
 		dataflash->set_param_float(param->angle_max.num, param->angle_max.value);
 		dataflash->set_param_float(param->pilot_accel_z.num, param->pilot_accel_z.value);
 		dataflash->set_param_float(param->pilot_takeoff_alt.num, param->pilot_takeoff_alt.value);
-		dataflash->set_param_float(param->_spool_up_time.num, param->_spool_up_time.value);
+		dataflash->set_param_float(param->spool_up_time.num, param->spool_up_time.value);
 		dataflash->set_param_float(param->throttle_filt.num, param->throttle_filt.value);
 		dataflash->set_param_vector3f(param->accel_offsets.num, param->accel_offsets.value);
 		dataflash->set_param_vector3f(param->accel_diagonals.num, param->accel_diagonals.value);
@@ -191,6 +196,13 @@ void update_dataflash(void){
 		dataflash->set_param_float(param->t_hover_update_max.num, param->t_hover_update_max.value);
 		dataflash->set_param_float(param->vib_land.num, param->vib_land.value);
 		dataflash->set_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
+		dataflash->set_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
+		dataflash->set_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+		/* Demo
+		 此处添加您的自定义参数, e.g.
+		 dataflash->set_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
+		 dataflash->set_param_float(param->demo_param_2.num, param->demo_param_2.value);
+		 * */
 	}else{
 		dataflash->get_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
 		dataflash->get_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
@@ -201,14 +213,12 @@ void update_dataflash(void){
 		dataflash->get_param_float(param->angle_max.num, param->angle_max.value);
 		dataflash->get_param_float(param->pilot_accel_z.num, param->pilot_accel_z.value);
 		dataflash->get_param_float(param->pilot_takeoff_alt.num, param->pilot_takeoff_alt.value);
-		dataflash->get_param_float(param->_spool_up_time.num, param->_spool_up_time.value);
+		dataflash->get_param_float(param->spool_up_time.num, param->spool_up_time.value);
 		dataflash->get_param_float(param->throttle_filt.num, param->throttle_filt.value);
 		dataflash->get_param_vector3f(param->accel_offsets.num, param->accel_offsets.value);
 		dataflash->get_param_vector3f(param->accel_diagonals.num, param->accel_diagonals.value);
 		dataflash->get_param_vector3f(param->accel_offdiagonals.num, param->accel_offdiagonals.value);
 		dataflash->get_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
-		dataflash->get_param_vector3f(param->mag_diagonals.num, param->mag_diagonals.value);
-		dataflash->get_param_vector3f(param->mag_offdiagonals.num, param->mag_offdiagonals.value);
 		dataflash->get_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 		dataflash->get_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
 		dataflash->get_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -231,6 +241,13 @@ void update_dataflash(void){
 		dataflash->get_param_float(param->t_hover_update_max.num, param->t_hover_update_max.value);
 		dataflash->get_param_float(param->vib_land.num, param->vib_land.value);
 		dataflash->get_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
+		dataflash->get_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
+		dataflash->get_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+		/* Demo
+		 此处添加您的自定义参数, e.g.
+		 dataflash->get_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
+		 dataflash->get_param_float(param->demo_param_2.num, param->demo_param_2.value);
+		 * */
 	}
 }
 
@@ -300,7 +317,7 @@ static mavlink_attitude_t attitude_mav;
 static mavlink_local_position_ned_cov_t local_position_ned_cov;
 static mavlink_set_position_target_local_ned_t set_position_target_local_ned;
 static Vector3f lidar_offset=Vector3f(0.0f,0.0f, -16.0f);//cm
-static mavlink_channel_t gcs_channel;
+static uint8_t gcs_channel=255;
 //发送
 static mavlink_system_t mavlink_system;
 static mavlink_message_t msg_attitude_rpy, msg_command_long, msg_battery_status, msg_rc_channels;
@@ -362,11 +379,23 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							param->mag_offdiagonals.value={0.0f,0.0f,0.0f};
 						}else if(is_equal(cmd.param1,3.0f)){            //校准水平
 							horizon_correct=true;
+							reset_horizon_integrator=true;
+							param->vel_pid_integrator.value={0.0f,0.0f,0.0f};
+							param->rate_pid_integrator.value={0.0f,0.0f,0.0f};
 						}
 						send_mavlink_commond_ack(chan, MAV_CMD_PREFLIGHT_CALIBRATION, MAV_CMD_ACK_OK);
 						break;
 					case MAV_CMD_DO_SET_PARAMETER:
 						if(is_equal(cmd.param1,0.5f)){//reset PID parameters in flash
+
+							/* Demo
+							 如果希望通过app的一键重置按钮把参数重置为默认值，那么把参数重置代码添加在这里
+							 param->demo_param_1.value={1.0,1.0,1.0};
+							 dataflash->set_param_float(param->demo_param_1.num, param->demo_param_1.value);
+							 param->demo_param_2.value=1.0f;
+							 dataflash->set_param_float(param->demo_param_2.num, param->demo_param_2.value);
+							 * */
+
 							param->angle_roll_p.value=AC_ATTITUDE_CONTROL_ANGLE_ROLL_P;
 							param->angle_pitch_p.value=AC_ATTITUDE_CONTROL_ANGLE_PITCH_P;
 							param->angle_yaw_p.value=AC_ATTITUDE_CONTROL_ANGLE_YAW_P;
@@ -409,7 +438,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							param->angle_max.value=DEFAULT_ANGLE_MAX;
 							param->pilot_accel_z.value=PILOT_ACCEL_Z_DEFAULT;
 							param->pilot_takeoff_alt.value=PILOT_TKOFF_ALT_DEFAULT;
-							param->_spool_up_time.value=MOTORS_SPOOL_UP_TIME_DEFAULT;
+							param->spool_up_time.value=MOTORS_SPOOL_UP_TIME_DEFAULT;
 							param->throttle_filt.value=MAN_THR_FILT_HZ;
 							param->t_hover_update_min.value=THR_HOVER_UPDATE_MIN;
 							param->t_hover_update_max.value=THR_HOVER_UPDATE_MAX;
@@ -424,7 +453,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							dataflash->set_param_float(param->angle_max.num, param->angle_max.value);
 							dataflash->set_param_float(param->pilot_accel_z.num, param->pilot_accel_z.value);
 							dataflash->set_param_float(param->pilot_takeoff_alt.num, param->pilot_takeoff_alt.value);
-							dataflash->set_param_float(param->_spool_up_time.num, param->_spool_up_time.value);
+							dataflash->set_param_float(param->spool_up_time.num, param->spool_up_time.value);
 							dataflash->set_param_float(param->throttle_filt.num, param->throttle_filt.value);
 							dataflash->set_param_float(param->t_hover_update_min.num, param->t_hover_update_min.value);
 							dataflash->set_param_float(param->t_hover_update_max.num, param->t_hover_update_max.value);
@@ -703,11 +732,11 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
 						}else if(is_equal(cmd.param1,21.0f)){
-							param->_spool_up_time.value=cmd.param2;
-							dataflash->set_param_float(param->_spool_up_time.num, param->_spool_up_time.value);
+							param->spool_up_time.value=cmd.param2;
+							dataflash->set_param_float(param->spool_up_time.num, param->spool_up_time.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
 							command_long.param1=21.0f;
-							command_long.param2=param->_spool_up_time.value;
+							command_long.param2=param->spool_up_time.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
 						}else if(is_equal(cmd.param1,22.0f)){
@@ -743,6 +772,23 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
 						}
+						/* Demo
+						 * 接收app设置的参数值
+						 else if(is_equal(cmd.param1,1001.0f)){ 		//cmd.param1为自定义参数的mavlink id, 从1001开始
+						 	param->demo_param_1.value.x=cmd.param2;		//cmd.param2~cmd.param7为参数实际内容。
+						 	param->demo_param_1.value.y=cmd.param3;
+						 	param->demo_param_1.value.z=cmd.param4;
+							dataflash->set_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
+							//接收完参数还要把参数传回给app用于校验
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=1001.0f;
+							command_long.param2=param->demo_param_1.value.x;
+							command_long.param3=param->demo_param_1.value.y;
+							command_long.param4=param->demo_param_1.value.z;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						 }
+						 * */
 						break;
 					default:
 						break;
@@ -793,31 +839,55 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 //系统启动后必须确保心跳函数1s运行一次
 void send_mavlink_heartbeat_data(void){
 	mavlink_message_t msg_heartbeat;
-	mavlink_heartbeat_t heartbeat;
+	mavlink_heartbeat_t heartbeat_send;
 	mavlink_system.sysid=1;
 	mavlink_system.compid=MAV_COMP_ID_AUTOPILOT1;
-	heartbeat.type=MAV_TYPE_OCTOROTOR;
-	heartbeat.autopilot=MAV_AUTOPILOT_GENERIC;
-	heartbeat.base_mode=MAV_MODE_FLAG_STABILIZE_ENABLED|MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
-	heartbeat.custom_mode=(param->robot_type.value<<24)|(param->motor_type.value<<16);
+	heartbeat_send.type=MAV_TYPE_OCTOROTOR;
+	heartbeat_send.autopilot=MAV_AUTOPILOT_GENERIC;
+	heartbeat_send.base_mode=MAV_MODE_FLAG_STABILIZE_ENABLED|MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
+	heartbeat_send.custom_mode=(param->robot_type.value<<24)|(param->motor_type.value<<16);
 	if(get_soft_armed()){
-	  heartbeat.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
+		heartbeat_send.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
 	}
-	mavlink_msg_heartbeat_encode(mavlink_system.sysid, mavlink_system.compid, &msg_heartbeat, &heartbeat);
+	mavlink_msg_heartbeat_encode(mavlink_system.sysid, mavlink_system.compid, &msg_heartbeat, &heartbeat_send);
+
+	//电量
+	battery_status.type=2;//3s锂电池
+	battery_status.temperature=(int16_t)(get_baro_temp()*100);
+	battery_status.voltages[0]=(uint16_t)(get_5v_in()*1000);
+	battery_status.voltages[1]=(uint16_t)(get_batt_volt()*1000);
+	battery_status.current_battery=(int16_t)(get_batt_current()*100);
+	mavlink_msg_battery_status_encode(mavlink_system.sysid, mavlink_system.compid, &msg_battery_status, &battery_status);
+
 	if ((COMM_0&COMM_MASK)==MAV_COMM){
 		mavlink_send_buffer(MAVLINK_COMM_0, &msg_heartbeat);
+		if(gcs_channel==MAVLINK_COMM_0){
+			mavlink_send_buffer(MAVLINK_COMM_0, &msg_battery_status);
+		}
 	}
 	if ((COMM_1&COMM_MASK)==MAV_COMM){
 	    mavlink_send_buffer(MAVLINK_COMM_1, &msg_heartbeat);
+	    if(gcs_channel==MAVLINK_COMM_1){
+			mavlink_send_buffer(MAVLINK_COMM_1, &msg_battery_status);
+		}
 	}
 	if ((COMM_2&COMM_MASK)==MAV_COMM){
 	    mavlink_send_buffer(MAVLINK_COMM_2, &msg_heartbeat);
+	    if(gcs_channel==MAVLINK_COMM_2){
+			mavlink_send_buffer(MAVLINK_COMM_2, &msg_battery_status);
+		}
 	}
 	if ((COMM_3&COMM_MASK)==MAV_COMM){
 	    mavlink_send_buffer(MAVLINK_COMM_3, &msg_heartbeat);
+	    if(gcs_channel==MAVLINK_COMM_3){
+			mavlink_send_buffer(MAVLINK_COMM_3, &msg_battery_status);
+		}
 	}
 	if ((COMM_4&COMM_MASK)==MAV_COMM){
 	    mavlink_send_buffer(MAVLINK_COMM_4, &msg_heartbeat);
+	    if(gcs_channel==MAVLINK_COMM_4){
+			mavlink_send_buffer(MAVLINK_COMM_4, &msg_battery_status);
+		}
 	}
 	if(get_mav_yaw&&((HAL_GetTick()-time_last_attitude)>1000)){
 		//外接机载电脑连上又断了
@@ -892,17 +962,8 @@ void send_mavlink_data(mavlink_channel_t chan)
 		}
 	}
 
-	//电量
-	battery_status.type=2;//3s锂电池
-	battery_status.temperature=(int16_t)(get_baro_temp()*100);
-	battery_status.voltages[0]=(uint16_t)(get_5v_in()*1000);
-	battery_status.voltages[1]=(uint16_t)(get_batt_volt()*1000);
-	battery_status.current_battery=(int16_t)(get_batt_current()*100);
-	mavlink_msg_battery_status_encode(mavlink_system.sysid, mavlink_system.compid, &msg_battery_status, &battery_status);
-	mavlink_send_buffer(chan, &msg_battery_status);
-
 	//电脑端地面站需要显示遥控信号
-	if(chan==gcs_channel){
+	if((chan==gcs_channel)&&(!get_rc_channels_override())){
 		rc_channels_t.chan1_raw=input_channel_roll();
 		rc_channels_t.chan2_raw=input_channel_pitch();
 		rc_channels_t.chan3_raw=input_channel_throttle();
@@ -1044,7 +1105,7 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 	mavlink_send_buffer(chan, &msg_command_long);
 
 	command_long.param1=21.0f;
-	command_long.param2=param->_spool_up_time.value;
+	command_long.param2=param->spool_up_time.value;
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
 
@@ -1067,6 +1128,16 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 	command_long.param2=param->vib_land.value;
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
+
+	/* Demo
+	 * 刷新参数列表
+	command_long.param1=1001.0f;
+	command_long.param2=param->demo_param_1.value.x;
+	command_long.param3=param->demo_param_1.value.y;
+	command_long.param4=param->demo_param_1.value.z;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+	 * */
 }
 
 void ekf_z_reset(void){
@@ -1161,9 +1232,9 @@ bool uwb_init(void){
 	if(uwb->uwb_init()){
 		uwb->config_uwb(tag, 1, 1, 1, 1, 4);
 		uwb->set_anchor_positon(1, 0, 0, 0);
-		uwb->set_anchor_positon(2, 0, 160, 0);
-		uwb->set_anchor_positon(3, 160, 0, 0);
-		uwb->set_anchor_positon(4, 0, 0, 165);
+		uwb->set_anchor_positon(2, 0, 240, 0);
+		uwb->set_anchor_positon(3, 240, 0, 0);
+		uwb->set_anchor_positon(4, 0, 0, 150);
 	}else{
 		return false;
 	}
@@ -1579,10 +1650,11 @@ void uwb_position_update(void){
 		float theta=1.65;
 		odom_3d.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
 		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
+		odom_3d.z=uwb->uwb_position.z;
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
-		if(uwb->uwb_position.z>50&&use_uwb_pos_z){
+		if(odom_3d.z>30&&use_uwb_pos_z){
 			rangefinder_state.alt_healthy=true;
-			rangefinder_state.alt_cm=uwb->uwb_position.z;
+			rangefinder_state.alt_cm=odom_3d.z;
 			rangefinder_state.last_healthy_ms=HAL_GetTick();
 		}else{
 			rangefinder_state.alt_healthy=false;
@@ -1591,6 +1663,7 @@ void uwb_position_update(void){
 	}
 }
 
+bool odom_filt=false;
 void ekf_odom_xy(void){
 	if(!ahrs->is_initialed()||(!ahrs_healthy)){
 		return;
@@ -1598,7 +1671,14 @@ void ekf_odom_xy(void){
 	if(odom_3d.x==0&&odom_3d.y==0){
 		return;
 	}
+	if(!odom_filt){
+		odom_filt=true;
+		_odom_vel_filter.set_cutoff_frequency(400, odom_vel_filt_hz);
+		_odom_pos_filter.set_cutoff_frequency(400, odom_pos_filt_hz);
+	}
 	ekf_odometry->update(get_odom_xy,odom_3d.x,odom_3d.y);
+	odom_vel_xy_filt=_odom_vel_filter.apply(Vector2f(ekf_odometry->vel_x,ekf_odometry->vel_y));
+	odom_pos_xy_filt=_odom_pos_filter.apply(Vector2f(ekf_odometry->pos_x,ekf_odometry->pos_y));
 }
 
 void ekf_gnss_xy(void){
@@ -1609,11 +1689,11 @@ void ekf_gnss_xy(void){
 }
 
 float get_pos_x(void){//cm
-	return ekf_odometry->pos_x;
+	return odom_pos_xy_filt.x;
 }
 
 float get_pos_y(void){//cm
-	return ekf_odometry->pos_y;
+	return odom_pos_xy_filt.y;
 }
 
 float get_pos_z(void){//cm
@@ -1621,11 +1701,11 @@ float get_pos_z(void){//cm
 }
 
 float get_vel_x(void){//cm/s
-	return ekf_odometry->vel_x;
+	return odom_vel_xy_filt.x;
 }
 
 float get_vel_y(void){//cm/s
-	return ekf_odometry->vel_y;
+	return odom_vel_xy_filt.y;
 }
 
 float get_vel_z(void){//cm/s
@@ -1681,7 +1761,7 @@ bool has_manual_throttle(void) { return _manual_throttle; }
 
 // update estimated throttle required to hover (if necessary)
 //  called at 100hz
-void update_throttle_hover(void)
+static void update_throttle_hover(void)
 {
     // if not armed or landed exit
     if (!motors->get_armed() || ap->land_complete) {
@@ -2038,10 +2118,6 @@ void set_land_complete(bool b)
     ap->land_complete = b;
 }
 
-void rate_controller_run(void){
-	attitude->rate_controller_run();
-}
-
 // arm_motors - performs arming process including initialisation of barometer and gyros
 //  returns false if arming failed because of pre-arm checks, arming checks or a gyro calibration failure
 bool arm_motors(void)
@@ -2088,6 +2164,14 @@ void disarm_motors(void)
         return;
     }
 
+    if(reset_horizon_integrator&&robot_state==STATE_FLYING){
+		dataflash->set_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
+		param->rate_pid_integrator.value.x=attitude->get_rate_roll_pid().get_integrator();
+		param->rate_pid_integrator.value.y=attitude->get_rate_pitch_pid().get_integrator();
+		param->rate_pid_integrator.value.z=attitude->get_rate_yaw_pid().get_integrator();
+		dataflash->set_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+	}
+
     // we are not in the air
     set_land_complete(true);
 
@@ -2096,6 +2180,7 @@ void disarm_motors(void)
 
     set_soft_armed(false);
 
+    //停止日志记录
     sdlog->Logger_Disable();
 
     Buzzer_set_ring_type(BUZZER_DISARM);
@@ -2132,15 +2217,11 @@ void lock_motors(void){
 	FMU_LED7_Control(false);
 }
 
-void motors_output(void){
-	motors->output();
-}
-
 // counter to verify landings
 static uint32_t land_detector_count = 0;
 // update_land_detector - checks if we have landed and updates the ap.land_complete flag
 // called at 100hz
-void update_land_detector(void)
+static void update_land_detector(void)
 {
 	ahrs->check_vibration();
 	//******************落地前********************
@@ -2194,7 +2275,7 @@ void update_land_detector(void)
 // update_throttle_thr_mix - sets motors throttle_low_comp value depending upon vehicle state
 //  low values favour pilot/autopilot throttle over attitude control, high values favour attitude control over throttle
 //  has no effect when throttle is above hover throttle
-void update_throttle_thr_mix()
+static void update_throttle_thr_mix()
 {
     // if disarmed or landed prioritise throttle
     if(!motors->get_armed() || ap->land_complete) {
@@ -2238,8 +2319,12 @@ void update_throttle_thr_mix()
 
 // throttle_loop - should be run at 100 hz
 void throttle_loop(void){
+	// update estimated throttle required to hover
+	update_throttle_hover();
     // update throttle_low_comp value (controls priority of throttle vs attitude control)
 	update_throttle_thr_mix();
+	//checks if we have landed and updates the ap.land_complete flag
+	update_land_detector();
 }
 
 //手势开关电机；
@@ -2345,38 +2430,6 @@ void zero_throttle_and_relax_ac(void)
     attitude->set_throttle_out_unstabilized(0.0f, true, param->throttle_filt.value);
 }
 
-/********回调函数：获取comm口接收的数据********
- * ***********************************
- * comm0 为usb口，comm1~comm4 为串口1~4
- * 只需配置 Clibrary/config.h 文件中的 COMM_0~COMM_4 为 DEV_COMM 即可启用下面回调函数。
- * 例如：
- * #define COMM_0 DEV_COMM 表示comm0被配置为自定义模式，
- * 此时 parse_comm0_data() 被启用
- * 注意：
- * 当comm口被配置为自定义模式后，接收到的数据会不经过任何处理直接传入下列回调函数，即comm口的其它数据处理功能会被禁用，
- * 若要启用其它数据处理功能，应把comm口重新配置为相应参数
- * ***********************************
- * ***********************************/
-void parse_comm0_data(uint8_t data){
-	//获取usb接收到的数据
-}
-
-void parse_comm1_data(uint8_t data){
-	//获取串口S1接收到的数据
-}
-
-void parse_comm2_data(uint8_t data){
-	//获取串口S2接收到的数据
-}
-
-void parse_comm3_data(uint8_t data){
-	//获取串口S3接收到的数据
-}
-
-void parse_comm4_data(uint8_t data){
-	//获取串口S4接收到的数据
-}
-
 /********回调函数：在SD卡中写入日志数据名称******
  * ***********************************
  * 注意Logger_Write()函数最多可以一次记录128个字符的字符串
@@ -2414,7 +2467,10 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_TARGET
 			"pos_x_t", "pos_y_t", "vel_x_t", "vel_y_t", "acc_x_t", "acc_y_t", "acc_z_t");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_CONTROL
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_RATE_CONTROL
+			"roll_p", "roll_i", "roll_d", "pitch_p", "pitch_i", "pitch_d", "yaw_p", "yaw_i", "yaw_d");
+	osDelay(1);
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_MOTOR_CONTROL
 			"roll_t", "pitch_t", "p_out", "r_out", "y_out", "t_out", "t_hover");
 	osDelay(1);
 	//add other loggers
@@ -2446,7 +2502,7 @@ void Logger_Data_Callback(void){
 			get_odom_x(), get_pos_x(), get_vel_x(), get_odom_y(), get_pos_y(), get_vel_y());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_VEL_PID_XY
-			pos_control->get_vel_xy_pid().get_p().x, pos_control->get_vel_xy_pid().get_i().x, pos_control->get_vel_xy_pid().get_d().x, pos_control->get_vel_xy_pid().get_p().y, pos_control->get_vel_xy_pid().get_i().y, pos_control->get_vel_xy_pid().get_d().y);
+			pos_control->get_vel_xy_pid().get_p().x, pos_control->get_vel_xy_pid().get_integrator().x, pos_control->get_vel_xy_pid().get_d().x, pos_control->get_vel_xy_pid().get_p().y, pos_control->get_vel_xy_pid().get_integrator().y, pos_control->get_vel_xy_pid().get_d().y);
 	osDelay(1);
 	sdlog->Logger_Write("%8d %8d %8d %8d %8d %8d %8d %8d ",//LOG_RCIN
 			input_channel_roll(), input_channel_pitch(), input_channel_yaw(), input_channel_throttle(), input_channel_5(), input_channel_6(), input_channel_7(), input_channel_8());
@@ -2457,7 +2513,11 @@ void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_TARGET
 			pos_control->get_pos_target().x, pos_control->get_pos_target().y, pos_control->get_vel_target().x, pos_control->get_vel_target().y,	pos_control->get_accel_target().x, pos_control->get_accel_target().y, pos_control->get_accel_target().z);
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_CONTROL
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_RATE_CONTROL
+			attitude->get_rate_roll_pid().get_p(), attitude->get_rate_roll_pid().get_integrator(), attitude->get_rate_roll_pid().get_d(), attitude->get_rate_pitch_pid().get_p(), attitude->get_rate_pitch_pid().get_integrator(), attitude->get_rate_pitch_pid().get_d(),
+			attitude->get_rate_yaw_pid().get_p(), attitude->get_rate_yaw_pid().get_integrator(), attitude->get_rate_yaw_pid().get_d());
+	osDelay(1);
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_MOTOR_CONTROL
 			pos_control->get_roll(), pos_control->get_pitch(), motors->get_pitch(), motors->get_roll(), motors->get_yaw(), motors->get_throttle(), motors->get_throttle_hover());
 	osDelay(1);
 	//add other loggers
@@ -2471,7 +2531,7 @@ void Logger_Update(void){
  * *******************code for test and debug*********************
  *****************************************************************/
 void debug(void){
-//	usb_printf("ux:%f|uy:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
+//	usb_printf("ux:%f|uy:%f|uz:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y,  uwb->uwb_position.z, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
 //	usb_printf("gps_position lat:%lf ,lon:%lf ,alt:%lf \r\n" , (double)gps_position->lat/10000000.0,(double)gps_position->lon/10000000.0,(double)gps_position->alt/1000000.0);
 //	usb_printf("l:%d|%d|%d\n",*(__IO uint8_t*)((uint32_t)0x081D0000),*(__IO uint8_t*)((uint32_t)0x081D0001),*(__IO uint8_t*)((uint32_t)0x081D0002));
 //	usb_printf("l:%d\n",dataflash->get_addr_num_max());
@@ -2505,22 +2565,23 @@ void debug(void){
 //	usb_printf("%f,%f,%f\n",qmc5883_data.magf.x, qmc5883_data.magf.y, qmc5883_data.magf.z);
 //	usb_printf("hover:%f|%f\n",param->t_hover_update_min.value,param->t_hover_update_max.value);
 //	usb_printf("m:%d|%d\n",param.motor_type.value, param.robot_type.value);
-//	usb_printf("pos_x:%f|%f|%f|%f,pos_y:%f|%f|%f|%f\n",get_pos_x(),get_vel_x(),ned_current_pos.x, ned_current_vel.x,get_pos_y(),get_vel_y(),ned_current_pos.y,ned_current_vel.y);
+//	usb_printf("pos_x:%f|%f,pos_y:%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());
 //	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
 //	usb_printf("vib:%f\n", param->vib_land.value);
 //	s2_printf("x:%f,y:%f\n", x_target, y_target);
 //	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("ax:%f\n",param.accel_offdiagonals.value.x);
-//	usb_printf("z:%f\n",get_rangefinder_alt());
-//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
+//	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
+//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%d,6:%d,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),mav_channels_in[0],mav_channels_in[1],get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
 //	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());
 //	usb_printf("yaw:%f,yaw_throttle:%f\n",yaw_deg,motors->get_yaw());
 //	usb_printf("c:%f,p:%f\n",compass_calibrate(),param.mag_offsets.value.x);
-//	usb_printf("g:%f\n",param.angle_roll_p.value);
-//	usb_printf("ox:%f, oy:%f, oz:%f\n",param.accel_offsets.value.x, param.accel_offsets.value.y, param.accel_offsets.value.z);
-//	usb_printf("dx:%f, dy:%f, dz:%f\n",param.mag_diagonals.value.x, param.mag_diagonals.value.y, param.mag_diagonals.value.z);
-//	usb_printf("odx:%f, ody:%f, odz:%f\n",param.mag_offdiagonals.value.x, param.mag_offdiagonals.value.y, param.mag_offdiagonals.value.z);
+//	usb_printf("i:%f|%f\n",param->vel_pid_integrator.value.x, param->vel_pid_integrator.value.y);
+//	usb_printf("i:%f|%f\n",attitude->get_rate_roll_pid().get_integrator(), attitude->get_rate_pitch_pid().get_integrator());
+//	usb_printf("ox:%f, oy:%f, oz:%f\n",param->mag_offsets.value.x, param->mag_offsets.value.y, param->mag_offsets.value.z);
+//	usb_printf("dx:%f, dy:%f, dz:%f\n",param->mag_diagonals.value.x, param->mag_diagonals.value.y, param->mag_diagonals.value.z);
+//	usb_printf("odx:%f, ody:%f, odz:%f\n",param->mag_offdiagonals.value.x, param->mag_offdiagonals.value.y, param->mag_offdiagonals.value.z);
 //	usb_printf("motor:%d|%d|%d|%d\n",pwm_channel.motor[0], motors->get_armed(), get_soft_armed(), motors->get_interlock());
 //	s2_printf("%d\n",HAL_GetTick());
 //  usb_printf("vib_value:%f, vib_angle:%f\n", get_vib_value(), get_vib_angle_z());

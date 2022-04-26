@@ -17,33 +17,33 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Attitude and Position Control pid parameters // 已设实际参数用于机臂较短、转动惯量较大的机型, 注释中的默认参数可用于机臂较长、转动惯量较小的机型  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define AC_ATTITUDE_CONTROL_ANGLE_ROLL_P                      4.0f             // default angle P gain for roll 4.5f
-#define AC_ATTITUDE_CONTROL_ANGLE_PITCH_P                     4.0f             // default angle P gain for pitch 4.5f
-#define AC_ATTITUDE_CONTROL_ANGLE_YAW_P                       4.0f             // default angle P gain for yaw 4.5f
+#define AC_ATTITUDE_CONTROL_ANGLE_ROLL_P                      8.0f             // default angle P gain for roll 4.5f
+#define AC_ATTITUDE_CONTROL_ANGLE_PITCH_P                     8.0f             // default angle P gain for pitch 4.5f
+#define AC_ATTITUDE_CONTROL_ANGLE_YAW_P                       5.0f             // default angle P gain for yaw 4.5f
 
 // default rate controller PID gains
 #ifndef AC_ATC_MULTI_RATE_PITCH_P
-  # define AC_ATC_MULTI_RATE_PITCH_P          0.06f //0.135
+  # define AC_ATC_MULTI_RATE_PITCH_P          0.04f //0.135
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_I
-  # define AC_ATC_MULTI_RATE_PITCH_I          0.03f //0.135
+  # define AC_ATC_MULTI_RATE_PITCH_I          0.02f //0.135
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_D
-  # define AC_ATC_MULTI_RATE_PITCH_D          0.0015f //0.0036
+  # define AC_ATC_MULTI_RATE_PITCH_D          0.001f //0.0036
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_P
-  # define AC_ATC_MULTI_RATE_ROLL_P           0.06f//0.135
+  # define AC_ATC_MULTI_RATE_ROLL_P           0.04f//0.135
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_I
-  # define AC_ATC_MULTI_RATE_ROLL_I           0.03f //0.135
+  # define AC_ATC_MULTI_RATE_ROLL_I           0.02f //0.135
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_D
-  # define AC_ATC_MULTI_RATE_ROLL_D           0.0015f//0.0036
+  # define AC_ATC_MULTI_RATE_ROLL_D           0.001f//0.0036
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_RP_IMAX
@@ -72,18 +72,18 @@
 #define POSCONTROL_POS_Z_P                    1.0f    // vertical position controller P gain default 1.0
 #define POSCONTROL_VEL_Z_P                    5.0f    // vertical velocity controller P gain default 5.0
 #define POSCONTROL_ACC_Z_P                    0.5f    // vertical acceleration controller P gain default 0.5
-#define POSCONTROL_ACC_Z_I                    0.5f     // vertical acceleration controller I gain default 0.5
+#define POSCONTROL_ACC_Z_I                    0.3f     // vertical acceleration controller I gain default 0.5
 #define POSCONTROL_ACC_Z_D                    0.0f    // vertical acceleration controller D gain default 0.0
 #define POSCONTROL_ACC_Z_IMAX                 500     // vertical acceleration controller IMAX gain default
 #define POSCONTROL_ACC_Z_FILT_HZ              20.0f   // vertical acceleration controller input filter default
 #define POSCONTROL_ACC_Z_DT                   0.0025f // vertical acceleration controller dt default
-#define POSCONTROL_POS_XY_P                   0.5f    // horizontal position controller P gain default 1.0
-#define POSCONTROL_VEL_XY_P                   0.6f    // horizontal velocity controller P gain default 2.0
-#define POSCONTROL_VEL_XY_I                   0.15f    // horizontal velocity controller I gain default 1.0
-#define POSCONTROL_VEL_XY_D                   0.15f    // horizontal velocity controller D gain default 0.5
-#define POSCONTROL_VEL_XY_IMAX                200.0f  // horizontal velocity controller IMAX gain default
-#define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter
-#define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D
+#define POSCONTROL_POS_XY_P                   0.8f    // horizontal position controller P gain default 1.0
+#define POSCONTROL_VEL_XY_P                   0.4f    // horizontal velocity controller P gain default 2.0
+#define POSCONTROL_VEL_XY_I                   0.2f    // horizontal velocity controller I gain default 1.0
+#define POSCONTROL_VEL_XY_D                   0.1f    // horizontal velocity controller D gain default 0.5
+#define POSCONTROL_VEL_XY_IMAX                50.0f  // horizontal velocity controller IMAX gain default 200
+#define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter default 5.0
+#define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D default 5.0
 
 // default parameters
 #ifndef ROLL_PITCH_YAW_INPUT_MAX
@@ -130,7 +130,7 @@
 #endif
 
 #ifndef PILOT_TKOFF_ALT_DEFAULT
- # define PILOT_TKOFF_ALT_DEFAULT           100     // default final alt above home for pilot initiated takeoff
+ # define PILOT_TKOFF_ALT_DEFAULT           150     // default final alt above home for pilot initiated takeoff
 #endif
 
 #ifndef LAND_RANGEFINDER_MIN_ALT_CM
@@ -406,11 +406,11 @@ typedef struct{
 	// @Range: 0 2
 	// @Units: s
 	// @Increment: 0.1
-	struct _spool_up_time{
+	struct spool_up_time{
 		uint16_t num=9;
 		dataflash_type type=FLOAT;
 		float value=MOTORS_SPOOL_UP_TIME_DEFAULT;
-	}_spool_up_time;
+	}spool_up_time;
 
 	// @DisplayName: Throttle filter cutoff
 	// @Description: Throttle filter cutoff (Hz) - active whenever altitude control is inactive - 0 to disable
@@ -600,6 +600,34 @@ typedef struct{
 		dataflash_type type=VECTOR3F;
 		Vector3f value={0,0,0};
 	}horizontal_correct;
+
+	struct vel_pid_integrator{
+		uint16_t num=34;
+		dataflash_type type=VECTOR3F;
+		Vector3f value={0,0,0};
+	}vel_pid_integrator;
+
+	struct rate_pid_integrator{
+		uint16_t num=35;
+		dataflash_type type=VECTOR3F;
+		Vector3f value={0,0,0};
+	}rate_pid_integrator;
+
+	/* Demo
+	 * 此处添加您的自定义参数结构体, e.g:
+	struct demo_param_1{
+		uint16_t num=401;                 	//参数id号, 为了不影响系统未来更新, 请将您自定义参数的num从401开始
+		dataflash_type type=VECTOR3F;	  	//参数类型
+		Vector3f value={1.0,1.0,1.0};		//参数默认值,按实际情况自行设置
+	}demo_param_1;
+
+	struct demo_param_2{
+		uint16_t num=402;                 	//参数id号, id号依次加1, 比如上一个参数id是401, 那么这一个参数id为402
+		dataflash_type type=FLOAT;	  		//参数类型
+		float value=1.0f;					//参数默认值,按实际情况自行设置
+	}demo_param_2;
+	 *
+	 * */
 
 }parameter;
 

@@ -155,9 +155,14 @@ typedef enum MOTOR_TYPE{
 }MOTOR_TYPE;
 
 typedef enum {
-	STATE_FLY=0,
-	STATE_CLIMB=1,
-	STATE_DRIVE=2
+	STATE_NONE=0,
+	STATE_TAKEOFF,
+	STATE_FLYING,
+	STATE_FLYING_VIRTUAL,
+	STATE_LANDED,
+	STATE_STOP,
+	STATE_CLIMB,
+	STATE_DRIVE
 }ROBOT_STATE;
 
 extern DMA_HandleTypeDef hdma_uart4_rx;
@@ -200,10 +205,6 @@ void ekf_baro_alt(void);
 void ekf_rf_alt(void);
 void ekf_odom_xy(void);
 void ekf_gnss_xy(void);
-void update_throttle_hover(void);
-void rate_controller_run(void);
-void motors_output(void);
-void update_land_detector(void);
 void throttle_loop(void);
 void get_tfmini_data(uint8_t buf);
 void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t* msg_received, mavlink_status_t* status);
@@ -223,11 +224,8 @@ bool mode_autonav_init(void);
 void mode_autonav(void);
 bool mode_poshold_init(void);
 void mode_poshold(void);
-void parse_comm0_data(uint8_t data);
-void parse_comm1_data(uint8_t data);
-void parse_comm2_data(uint8_t data);
-void parse_comm3_data(uint8_t data);
-void parse_comm4_data(uint8_t data);
+bool mode_mecanum_init(void);
+void mode_mecanum(void);
 void debug(void);
 /****************c/c++ interface*******************************/
 bool get_task_initialed(void);
@@ -382,6 +380,21 @@ extern uint8_t COMM_0, COMM_1, COMM_2, COMM_3, COMM_4;
  * (4)TFMINI_COMM  	TFmini激光测距仪
  * **************************************/
 void config_comm(uint8_t comm0, uint8_t comm1, uint8_t comm2, uint8_t comm3, uint8_t comm4);
+
+/*****************************以下为usb+串口接收数据相关函数******************************/
+uint8_t get_comm0_available(void);	//判断usb口是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm1_available(void);	//判断串口1是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口1是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm2_available(void);	//判断串口2是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口2是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm3_available(void);	//判断串口3是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口3是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm4_available(void);	//判断串口4是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口4是自定义模式 DEV_COMM 时才有效)
+
+uint8_t get_comm0_data(void);	//读取USB口收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm1_data(void);	//读取串口1收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在串口1是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm2_data(void);	//读取串口2收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在串口2是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm3_data(void);	//读取串口3收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在串口3是自定义模式 DEV_COMM 时才有效)
+uint8_t get_comm4_data(void);	//读取串口4收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在串口4是自定义模式 DEV_COMM 时才有效)
+
+/*****************************以下为usb+串口发送数据相关函数*******************************/
 /**
   * @brief  采用缓冲的方式从usb或串口发送数据（强烈推荐采用这种方式）
   * @param  chan: 端口号（MAVLINK_COMM_0为USB;MAVLINK_COMM_1~MAVLINK_COMM_4为串口1~4）
@@ -408,9 +421,12 @@ void send_usb_data(uint8_t* buf, uint16_t len);
   */
 void read_usb_data_callback(uint8_t* Buf, uint32_t Len);// 回调函数
 /**
-  * @brief  从usb口输出字符，用法与printf相同，主要用于调试
+  * @brief  通过缓冲区从usb口输出字符，用法与printf相同，主要用于调试
   */
 void usb_printf(const char* s, ...);
+/**
+  * @brief  不经过缓冲区，直接从usb口输出字符，用法与printf相同，主要用于调试
+  */
 void usb_printf_dir(const char* s, ...);
 
 //serial port
@@ -420,14 +436,14 @@ void set_s2_baudrate(uint32_t baudrate);//配置串口2波特率，默认初始�
 void set_s3_baudrate(uint32_t baudrate);//配置串口3波特率，默认初始波特率为115200
 void set_s4_baudrate(uint32_t baudrate);//配置串口4波特率，默认初始波特率为115200
 /**
-  * @brief  通过环形缓冲区，从串口1-串口4输出字符，用法与printf相同，主要用于调试
+  * @brief  通过缓冲区，从串口1-串口4输出字符，用法与printf相同，主要用于调试
   */
 void s1_printf(const char* s, ...);
 void s2_printf(const char* s, ...);
 void s3_printf(const char* s, ...);
 void s4_printf(const char* s, ...);
 /**
-  * @brief  直接从串口1-串口4输出字符，不通过环形缓冲区
+  * @brief  直接从串口1-串口4输出字符，不通过缓冲区
   */
 void s1_printf_dir(const char* s, ...);
 void s2_printf_dir(const char* s, ...);
@@ -436,35 +452,35 @@ void s4_printf_dir(const char* s, ...);
 /**
   * @brief  采用中断方式从串口1发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的长度
+  * @param  size: 待发送数据的字节长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s1_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口2发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的长度
+  * @param  size: 待发送数据的字节长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s2_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口3发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的长度
+  * @param  size: 待发送数据的字节长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s3_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用中断方式从串口4发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的长度
+  * @param  size: 待发送数据的字节长度
   * @retval 串口发送状态
   */
 HAL_StatusTypeDef s4_send_buf(uint8_t* buf, uint16_t size);
 /**
   * @brief  采用等待方式从串口发送数据
   * @param  buf: 待发送数据的数组起始地址
-  * @param  size: 待发送数据的长度
+  * @param  size: 待发送数据的字节长度
   * @param  timeout: 最长等待时间(单位：ms)
   * @retval 串口发送状态
   */
@@ -474,7 +490,7 @@ HAL_StatusTypeDef s3_send_buf_delayms(uint8_t* buf, uint16_t size, uint32_t time
 HAL_StatusTypeDef s4_send_buf_delayms(uint8_t* buf, uint16_t size, uint32_t timeout);
 
 /**
-  * @brief  这个函数可以把待发送数据存入mavlink缓冲区, 无阻塞
+  * @brief  这个函数可以把待发送的mavlink消息包存入缓冲区, 无阻塞
   * @param  chan: 消息发送端口（MAVLINK_COMM_0~MAVLINK_COMM_4）
   * 			MAVLINK_COMM_0 为usb口
   * 			MAVLINK_COMM_1为串口1
@@ -485,8 +501,8 @@ HAL_StatusTypeDef s4_send_buf_delayms(uint8_t* buf, uint16_t size, uint32_t time
   * @retval None
   */
 void mavlink_send_buffer(mavlink_channel_t chan, mavlink_message_t *msg);
-//把mavlink缓冲区中的数据以非阻塞方式从MAVLINK_COMM_0~MAVLINK_COMM_4中发送出去
-void mav_send_data(void);
+void mav_send_data(void);//把缓冲区中的数据以非阻塞方式从MAVLINK_COMM_0~MAVLINK_COMM_4中发送出去,此函数为系统函数,不需要用户调用.
+
 #define EVENTBIT_HEARTBEAT_COMM_0 (1<<0) //usb
 #define EVENTBIT_HEARTBEAT_COMM_1 (1<<1) //串口1
 #define EVENTBIT_HEARTBEAT_COMM_2 (1<<2) //串口2
@@ -623,6 +639,7 @@ HAL_StatusTypeDef sbus_output_buf_delayms(uint8_t* buf, uint16_t size, uint32_t 
 void RC_Input_Init(uint8_t mode);//初始化遥控接收机（PPM/SBUS）
 void RC_Input_Loop(void);//接收遥控器数据
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
+bool get_rc_channels_override(void);//获取Mavlink覆盖遥控器信号
 extern uint16_t *mav_channels_in;
 
 //初始化wifi模组

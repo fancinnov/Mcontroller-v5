@@ -152,4 +152,6 @@ void mode_poshold(void){
 	default:
 		break;
 	}
+	attitude->rate_controller_run();
+	motors->output();
 }

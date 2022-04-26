@@ -22,6 +22,8 @@ public:
 	float pos_x=0, pos_y=0, vel_x=0, vel_y=0;
 
 private:
+	float _filt_alpha(float dt, float filt_hz);
+	float _alpha=0;
 	float Qt[2]={1.0f,1.0f}; //观测数据的方差
 	float T_odom=0.0025; //2.5ms
 	bool initialed=false;
@@ -60,6 +62,9 @@ private:
 	float* error1_odomy;
 	float* error2_odomy;
 	float* Kal_odomy;
+	float accel_filt_hz=2;//Hz 震动对于速度预测影响非常大 所以要把截止频率设低一些
+	float accelx_filt=0;
+	float accely_filt=0;
 };
 
 #endif /* INCLUDE_EKF_EKF_ODOMETRY_H_ */

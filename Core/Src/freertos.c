@@ -46,7 +46,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-ROBOT_STATE robot_state;
+ROBOT_STATE robot_state=STATE_NONE;
 __IO uint16_t volt_sense_adc_value, current_sense_adc_value, *sense_adc1_value;
 RingBuffer ringbuffer_usb, ringbuffer_comm1, ringbuffer_comm2, ringbuffer_comm3, ringbuffer_comm4;
 RingBuffer ringbuffer_usb_send, ringbuffer_comm1_send, ringbuffer_comm2_send, ringbuffer_comm3_send, ringbuffer_comm4_send;
@@ -391,8 +391,6 @@ void Loop400hzTask(void *argument)
 	  ekf_odom_xy();
 //	  ekf_gnss_xy();
 	  mode_autonav();
-	  rate_controller_run();
-	  motors_output();
   }
   /* USER CODE END Loop400hzTask */
 }
@@ -420,9 +418,7 @@ void Loop100hzTask(void *argument)
 	  /***Do not change code above and add new code below***/
 	  lock_motors_check();
 	  arm_motors_check();
-	  update_throttle_hover();
 	  throttle_loop();
-	  update_land_detector();
   }
   /* USER CODE END Loop100hzTask */
 }

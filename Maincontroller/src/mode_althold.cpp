@@ -74,6 +74,7 @@ void mode_althold(void){
 			set_land_complete(false);
 			// clear i terms
 			set_throttle_takeoff();
+			set_thr_force_decrease(false);//起飞时禁止限制油门
 		}
 //		usb_printf("target_climb_rate:%f\n",target_climb_rate);
 		// get take-off adjusted pilot and takeoff climb rates
@@ -83,7 +84,6 @@ void mode_althold(void){
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		target_yaw=ahrs_yaw_deg();
 		// call position controller
-		set_thr_force_decrease(false);//起飞时禁止限制油门
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 		pos_control->add_takeoff_climb_rate(takeoff_climb_rate, _dt);
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
@@ -128,4 +128,6 @@ void mode_althold(void){
 	default:
 		break;
 	}
+	attitude->rate_controller_run();
+	motors->output();
 }

@@ -47,4 +47,7 @@ void mode_stabilize(void){
 
 	// output pilot's throttle
 	attitude->set_throttle_out(pilot_throttle_scaled, true, param->throttle_filt.value);
+
+	attitude->rate_controller_run();
+	motors->output();
 }
