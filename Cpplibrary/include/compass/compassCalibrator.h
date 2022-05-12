@@ -61,7 +61,7 @@ public:
 
     void set_tolerance(float tolerance) { _tolerance = tolerance; }
 
-    void get_calibration(Vector3f &offsets, Vector3f &diagonals, Vector3f &offdiagonals);
+    void get_calibration(Vector3f &offsets);
     enum Rotation get_orientation(void) { return _orientation; }
     enum Rotation get_original_orientation(void) { return _orig_orientation; }
 

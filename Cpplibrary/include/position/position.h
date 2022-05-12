@@ -36,6 +36,7 @@
 
 #define POSCONTROL_ACTIVE_TIMEOUT_MS            200     // position controller is considered active if it has been called within the past 0.2 seconds
 
+#define POSCONTROL_VEL_TARGET_CUTOFF_FREQ       20.0f    // low-pass filter on velocity error (unit: hz)
 #define POSCONTROL_VEL_ERROR_CUTOFF_FREQ        1.0f    // low-pass filter on velocity error (unit: hz)
 #define POSCONTROL_THROTTLE_CUTOFF_FREQ         1.0f    // low-pass filter on accel error (unit: hz)
 #define POSCONTROL_ACCEL_FILTER_HZ              1.0f    // low-pass filter on acceleration (unit: hz)
@@ -364,6 +365,7 @@ protected:
 
     // parameters
     float    _accel_xy_filt_hz;      // XY acceleration filter cutoff frequency
+    float    _vel_target_xy_filt_hz; // XY velocity target filter cutoff frequency
     float    _lean_angle_max;        // Maximum autopilot commanded angle (in degrees). Set to zero for Angle Max
     P        _p_pos_z;
     P        _p_vel_z;

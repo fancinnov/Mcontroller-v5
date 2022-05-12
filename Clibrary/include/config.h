@@ -42,8 +42,10 @@
 #define RC_INPUT_CHANNELS  	8       //8 RC input channel (value:1000~2000)
 
 //遥控器输入脉宽有效值范围
-#define RC_INPUT_MIN 1100.0f // 脉宽 1100us
-#define RC_INPUT_MAX 1900.0f // 脉宽 1900us
+#define RC_INPUT_MIN 	1000.0f // 脉宽 1000us
+#define RC_INPUT_MAX 	2000.0f // 脉宽 2000us
+#define RC_INPUT_MID 	1500.0f // 脉宽 1500us
+#define RC_INPUT_RANGE 	1000.0f // 脉宽 1000us
 
 //串口模式
 #define COMM_MASK 	0x0F //串口模式掩码

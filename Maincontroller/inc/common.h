@@ -14,6 +14,13 @@
 #include "filter/LowPassFilter.h"
 #include "filter/LowPassFilter2p.h"
 
+/* *************************************************
+ * ****************Dev code begin*******************/
+// Warning! Developer can add your new code here!
+
+/* ****************Dev code end*********************
+ * *************************************************/
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Attitude and Position Control pid parameters // 已设实际参数用于机臂较短、转动惯量较大的机型, 注释中的默认参数可用于机臂较长、转动惯量较小的机型  //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -287,7 +294,8 @@ typedef enum {// if add new type, must add to the end of the list
 	VECTOR2F,
 	VECTOR3F,
 	FLOAT_PID,
-	FLOAT_PID_2D
+	FLOAT_PID_2D,
+	UINT16_CHANNLE_8
 }dataflash_type;
 
 struct {
@@ -460,23 +468,23 @@ typedef struct{
 		Vector3f value;
 	}mag_offsets;
 
-	// @DisplayName: mag_diagonals
-	// @Units: mGuass
-	// @Range: 0.2 5.0
-	struct mag_diagonals{
+	// @DisplayName: channel_range
+	// @Units: us
+	// @Range: 1000 2000
+	struct channel_range{
 		uint16_t num=15;
-		dataflash_type type=VECTOR3F;
-		Vector3f value={1.0f,1.0f,1.0f};
-	}mag_diagonals;
-
-	// @DisplayName: mag_offdiagonals
-	// @Units: mGuass
-	// @Range: 0 1.0
-	struct mag_offdiagonals{
-		uint16_t num=16;
-		dataflash_type type=VECTOR3F;
-		Vector3f value;
-	}mag_offdiagonals;
+		dataflash_type type=UINT16_CHANNLE_8;
+		uint16_t channel[8]={
+				1100, 	//ch1_min
+				1100,	//ch2_min
+				1100,	//ch3_min
+				1100,	//ch4_min
+				1900,	//ch1_max
+				1900,	//ch2_max
+				1900,	//ch3_max
+				1900	//ch4_max
+		};
+	}channel_range;
 
 	struct angle_roll_p{
 		uint16_t num=17;
@@ -613,6 +621,9 @@ typedef struct{
 		Vector3f value={0,0,0};
 	}rate_pid_integrator;
 
+	/* *************************************************
+	 * ****************Dev code begin*******************/
+	// Warning! Developer can add your new code here!
 	/* Demo
 	 * 此处添加您的自定义参数结构体, e.g:
 	struct demo_param_1{
@@ -628,6 +639,9 @@ typedef struct{
 	}demo_param_2;
 	 *
 	 * */
+
+	/* ****************Dev code end*********************
+	 * *************************************************/
 
 }parameter;
 

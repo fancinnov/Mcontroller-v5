@@ -19,6 +19,13 @@
  *
  * ****************************/
 
+/* *************************************************
+ * ****************Dev code begin*******************/
+// Warning! Developer can add your new code here!
+
+/* ****************Dev code end*********************
+ * *************************************************/
+
 static bool accel_cal_succeed=true;
 static bool gyro_cal_succeed=false;
 static bool compass_cal_succeed=false;
@@ -39,6 +46,7 @@ static bool get_rangefinder_data=false;
 static bool get_mav_yaw=false, get_odom_xy=false;
 static bool mag_corrected=false, mag_correcting=false;
 static bool use_uwb_pos_z=false;
+static bool rc_channels_sendback=false;
 
 static float accel_filt_hz=10;//HZ
 static float gyro_filt_hz=20;//HZ
@@ -172,8 +180,7 @@ void update_dataflash(void){
 		dataflash->set_param_vector3f(param->accel_diagonals.num, param->accel_diagonals.value);
 		dataflash->set_param_vector3f(param->accel_offdiagonals.num, param->accel_offdiagonals.value);
 		dataflash->set_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
-		dataflash->set_param_vector3f(param->mag_diagonals.num, param->mag_diagonals.value);
-		dataflash->set_param_vector3f(param->mag_offdiagonals.num, param->mag_offdiagonals.value);
+		dataflash->set_param_uint16_channel8(param->channel_range.num, param->channel_range.channel);
 		dataflash->set_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 		dataflash->set_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
 		dataflash->set_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -198,11 +205,18 @@ void update_dataflash(void){
 		dataflash->set_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
 		dataflash->set_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
 		dataflash->set_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+
+		/* *************************************************
+		* ****************Dev code begin*******************/
+		// Warning! Developer can add your new code here!
 		/* Demo
 		 此处添加您的自定义参数, e.g.
 		 dataflash->set_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
 		 dataflash->set_param_float(param->demo_param_2.num, param->demo_param_2.value);
 		 * */
+
+		/* ****************Dev code end*********************
+		* *************************************************/
 	}else{
 		dataflash->get_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
 		dataflash->get_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
@@ -219,6 +233,7 @@ void update_dataflash(void){
 		dataflash->get_param_vector3f(param->accel_diagonals.num, param->accel_diagonals.value);
 		dataflash->get_param_vector3f(param->accel_offdiagonals.num, param->accel_offdiagonals.value);
 		dataflash->get_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
+		dataflash->get_param_uint16_channel8(param->channel_range.num, param->channel_range.channel);
 		dataflash->get_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 		dataflash->get_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
 		dataflash->get_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -243,11 +258,17 @@ void update_dataflash(void){
 		dataflash->get_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
 		dataflash->get_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
 		dataflash->get_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+		/* *************************************************
+		 * ****************Dev code begin*******************/
+		// Warning! Developer can add your new code here!
 		/* Demo
 		 此处添加您的自定义参数, e.g.
 		 dataflash->get_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
 		 dataflash->get_param_float(param->demo_param_2.num, param->demo_param_2.value);
 		 * */
+
+		/* ****************Dev code end*********************
+		 * *************************************************/
 	}
 }
 
@@ -320,8 +341,8 @@ static Vector3f lidar_offset=Vector3f(0.0f,0.0f, -16.0f);//cm
 static uint8_t gcs_channel=255;
 //发送
 static mavlink_system_t mavlink_system;
-static mavlink_message_t msg_attitude_rpy, msg_command_long, msg_battery_status, msg_rc_channels;
-static mavlink_attitude_t attitude_rpy;
+static mavlink_message_t msg_global_attitude_position, msg_command_long, msg_battery_status, msg_rc_channels;
+static mavlink_global_vision_position_estimate_t global_attitude_position;
 static mavlink_command_long_t command_long;
 static mavlink_battery_status_t battery_status;
 static mavlink_rc_channels_t rc_channels_t;
@@ -375,8 +396,6 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mag_corrected=false;
 							ahrs->reset();
 							param->mag_offsets.value={0.0f,0.0f,0.0f};
-							param->mag_diagonals.value={1.0f,1.0f,1.0f};
-							param->mag_offdiagonals.value={0.0f,0.0f,0.0f};
 						}else if(is_equal(cmd.param1,3.0f)){            //校准水平
 							horizon_correct=true;
 							reset_horizon_integrator=true;
@@ -388,6 +407,9 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 					case MAV_CMD_DO_SET_PARAMETER:
 						if(is_equal(cmd.param1,0.5f)){//reset PID parameters in flash
 
+							/* *************************************************
+							 * ****************Dev code begin*******************/
+							// Warning! Developer can add your new code here!
 							/* Demo
 							 如果希望通过app的一键重置按钮把参数重置为默认值，那么把参数重置代码添加在这里
 							 param->demo_param_1.value={1.0,1.0,1.0};
@@ -395,6 +417,9 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							 param->demo_param_2.value=1.0f;
 							 dataflash->set_param_float(param->demo_param_2.num, param->demo_param_2.value);
 							 * */
+
+							/* ****************Dev code end*********************
+							 * *************************************************/
 
 							param->angle_roll_p.value=AC_ATTITUDE_CONTROL_ANGLE_ROLL_P;
 							param->angle_pitch_p.value=AC_ATTITUDE_CONTROL_ANGLE_PITCH_P;
@@ -772,12 +797,15 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
 						}
+						/* *************************************************
+						 * ****************Dev code begin*******************/
+						// Warning! Developer can add your new code here!
 						/* Demo
 						 * 接收app设置的参数值
 						 else if(is_equal(cmd.param1,1001.0f)){ 		//cmd.param1为自定义参数的mavlink id, 从1001开始
-						 	param->demo_param_1.value.x=cmd.param2;		//cmd.param2~cmd.param7为参数实际内容。
-						 	param->demo_param_1.value.y=cmd.param3;
-						 	param->demo_param_1.value.z=cmd.param4;
+							param->demo_param_1.value.x=cmd.param2;		//cmd.param2~cmd.param7为参数实际内容。
+							param->demo_param_1.value.y=cmd.param3;
+							param->demo_param_1.value.z=cmd.param4;
 							dataflash->set_param_vector3f(param->demo_param_1.num, param->demo_param_1.value);
 							//接收完参数还要把参数传回给app用于校验
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -789,6 +817,9 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mavlink_send_buffer(chan, &msg_command_long);
 						 }
 						 * */
+
+						/* ****************Dev code end*********************
+						 * *************************************************/
 						break;
 					default:
 						break;
@@ -799,15 +830,40 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 				break;
 			case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
 				mavlink_msg_rc_channels_override_decode(msg_received, &rc_channels);
-				mav_channels_in[0]=rc_channels.chan1_raw;
-				mav_channels_in[1]=rc_channels.chan2_raw;
-				mav_channels_in[2]=rc_channels.chan3_raw;
-				mav_channels_in[3]=rc_channels.chan4_raw;
-				mav_channels_in[4]=rc_channels.chan5_raw;
-				mav_channels_in[5]=rc_channels.chan6_raw;
-				mav_channels_in[6]=rc_channels.chan7_raw;
-				mav_channels_in[7]=rc_channels.chan8_raw;
-				set_rc_channels_override(true);
+				if(rc_channels.target_component==0){			/***APP遥控功能已启用***/
+					mav_channels_in[0]=rc_channels.chan1_raw;
+					mav_channels_in[1]=rc_channels.chan2_raw;
+					mav_channels_in[2]=rc_channels.chan3_raw;
+					mav_channels_in[3]=rc_channels.chan4_raw;
+					mav_channels_in[4]=rc_channels.chan5_raw;
+					mav_channels_in[5]=rc_channels.chan6_raw;
+					mav_channels_in[6]=rc_channels.chan7_raw;
+					mav_channels_in[7]=rc_channels.chan8_raw;
+					set_rc_channels_override(true);				//使能rc_channels_override把控制权给APP
+					rc_channels_sendback=false;					//关闭遥控通道回传
+				}else if(rc_channels.target_component==1){		/***遥控校准已确认***/
+					set_rc_channels_override(false);			//清除rc_channels_override把控制权给遥控器
+					rc_channels_sendback=false;					//关闭遥控通道回传
+					param->channel_range.channel[0]=rc_channels.chan1_raw;	//ch1_min
+					param->channel_range.channel[1]=rc_channels.chan2_raw;	//ch2_min
+					param->channel_range.channel[2]=rc_channels.chan3_raw;	//ch3_min
+					param->channel_range.channel[3]=rc_channels.chan4_raw;	//ch4_min
+					param->channel_range.channel[4]=rc_channels.chan5_raw;	//ch1_max
+					param->channel_range.channel[5]=rc_channels.chan6_raw;	//ch2_max
+					param->channel_range.channel[6]=rc_channels.chan7_raw;	//ch3_max
+					param->channel_range.channel[7]=rc_channels.chan8_raw;	//ch4_max
+					dataflash->set_param_uint16_channel8(param->channel_range.num, param->channel_range.channel);
+					rc_range_init();
+					send_mavlink_commond_ack(chan, (MAV_CMD)1, MAV_CMD_ACK_OK);
+				}else if(rc_channels.target_component==2){		/***遥控校准已启动***/
+					set_rc_channels_override(false);			//清除rc_channels_override把控制权给遥控器
+					rc_channels_sendback=true;					//启动遥控通道回传
+					send_mavlink_commond_ack(chan, (MAV_CMD)2, MAV_CMD_ACK_OK);
+				}else{											/***APP遥控功能已禁用***/
+					set_rc_channels_override(false);			//清除rc_channels_override把控制权给遥控器
+					rc_channels_sendback=false;					//关闭遥控通道回传
+					send_mavlink_commond_ack(chan, (MAV_CMD)3, MAV_CMD_ACK_OK);
+				}
 				break;
 			case MAVLINK_MSG_ID_ATTITUDE:   // MAV ID: 30
 				mavlink_msg_attitude_decode(msg_received, &attitude_mav);
@@ -848,6 +904,9 @@ void send_mavlink_heartbeat_data(void){
 	heartbeat_send.custom_mode=(param->robot_type.value<<24)|(param->motor_type.value<<16);
 	if(get_soft_armed()){
 		heartbeat_send.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
+	}
+	if(sdlog->m_Logger_Status==SDLog::Logger_Record){
+		heartbeat_send.base_mode|=MAV_MODE_FLAG_HIL_ENABLED;
 	}
 	mavlink_msg_heartbeat_encode(mavlink_system.sysid, mavlink_system.compid, &msg_heartbeat, &heartbeat_send);
 
@@ -914,16 +973,14 @@ void send_mavlink_data(mavlink_channel_t chan)
 	}
 	uint32_t time=HAL_GetTick();
 
-	//姿态
-	attitude_rpy.pitch=ahrs_pitch_rad();
-	attitude_rpy.pitchspeed=gyro_filt.y;
-	attitude_rpy.roll=ahrs_roll_rad();
-	attitude_rpy.rollspeed=gyro_filt.x;
-	attitude_rpy.yaw=ahrs_yaw_rad();
-	attitude_rpy.yawspeed=gyro_filt.z;
-	attitude_rpy.time_boot_ms=time;
-	mavlink_msg_attitude_encode(mavlink_system.sysid, mavlink_system.compid, &msg_attitude_rpy, &attitude_rpy);
-	mavlink_send_buffer(chan, &msg_attitude_rpy);
+	//姿态+位置
+	global_attitude_position.pitch=ahrs_pitch_rad();
+	global_attitude_position.roll=ahrs_roll_rad();
+	global_attitude_position.yaw=ahrs_yaw_rad();
+	global_attitude_position.z=get_pos_z();
+	global_attitude_position.usec=time;
+	mavlink_msg_global_vision_position_estimate_encode(mavlink_system.sysid, mavlink_system.compid, &msg_global_attitude_position, &global_attitude_position);
+	mavlink_send_buffer(chan, &msg_global_attitude_position);
 
 	//加速度计校准
 	if(!accel_cal_succeed){
@@ -963,7 +1020,7 @@ void send_mavlink_data(mavlink_channel_t chan)
 	}
 
 	//电脑端地面站需要显示遥控信号
-	if((chan==gcs_channel)&&(!get_rc_channels_override())){
+	if((chan==gcs_channel)&&rc_channels_sendback){
 		rc_channels_t.chan1_raw=input_channel_roll();
 		rc_channels_t.chan2_raw=input_channel_pitch();
 		rc_channels_t.chan3_raw=input_channel_throttle();
@@ -1129,6 +1186,9 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
 
+	/* *************************************************
+	 * ****************Dev code begin*******************/
+	// Warning! Developer can add your new code here!
 	/* Demo
 	 * 刷新参数列表
 	command_long.param1=1001.0f;
@@ -1138,6 +1198,9 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
 	 * */
+
+	/* ****************Dev code end*********************
+	 * *************************************************/
 }
 
 void ekf_z_reset(void){
@@ -1150,6 +1213,19 @@ void ekf_xy_reset(void){
 	ekf_odometry->reset();
 	ekf_gnss->reset();
 	pos_control->set_xy_target(get_pos_x(), get_pos_y());
+}
+
+extern float *rc_range_min,*rc_range_max;
+void rc_range_init(void){
+	rc_range_min[0]=(float)param->channel_range.channel[0];
+	rc_range_min[1]=(float)param->channel_range.channel[1];
+	rc_range_min[2]=(float)param->channel_range.channel[2];
+	rc_range_min[3]=(float)param->channel_range.channel[3];
+	rc_range_max[0]=(float)param->channel_range.channel[4];
+	rc_range_max[1]=(float)param->channel_range.channel[5];
+	rc_range_max[2]=(float)param->channel_range.channel[6];
+	rc_range_max[3]=(float)param->channel_range.channel[7];
+	rc_range_cal();
 }
 
 void motors_init(void){
@@ -1452,10 +1528,7 @@ void update_mag_data(void){
 
 	mag.rotate(ROTATION_YAW_270);
 
-	Matrix3f softiron{     param->mag_diagonals.value.x,    param->mag_offdiagonals.value.x,    param->mag_offdiagonals.value.y,
-						param->mag_offdiagonals.value.x,       param->mag_diagonals.value.y,    param->mag_offdiagonals.value.z,
-						param->mag_offdiagonals.value.y,    param->mag_offdiagonals.value.z,       param->mag_diagonals.value.z};
-	mag_correct=softiron*(mag+param->mag_offsets.value);
+	mag_correct=mag+param->mag_offsets.value;
 
 	if((!is_equal(param->mag_offsets.value.x,0.0f))&&(!is_equal(param->mag_offsets.value.y,0.0f))&&(!is_equal(param->mag_offsets.value.z,0.0f))){
 		mag_corrected=true;
@@ -1485,10 +1558,8 @@ void compass_calibrate(void){
 	compassCalibrator->update(calibrate_failure);
 	completion_percent=compassCalibrator->get_completion_percent()/100.0f;
 	if(is_equal(completion_percent,1.0f)){
-		compassCalibrator->get_calibration(param->mag_offsets.value, param->mag_diagonals.value, param->mag_offdiagonals.value);
+		compassCalibrator->get_calibration(param->mag_offsets.value);
 		dataflash->set_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
-		dataflash->set_param_vector3f(param->mag_diagonals.num, param->mag_diagonals.value);
-		dataflash->set_param_vector3f(param->mag_offdiagonals.num, param->mag_offdiagonals.value);
 		compass_cal_succeed=true;
 		mag_correcting=false;
 		usb_printf("compass calibrate succeed!\n");
@@ -2335,7 +2406,7 @@ void arm_motors_check(void){
 	static int16_t arming_counter;
 	float throttle=get_channel_throttle();
 	// ensure throttle is down
-	if (throttle > 0.01) {
+	if (throttle > 0.05) {
 		arming_counter = 0;
 		return;
 	}
@@ -2531,6 +2602,7 @@ void Logger_Update(void){
  * *******************code for test and debug*********************
  *****************************************************************/
 void debug(void){
+//	usb_printf("l:%d\n",get_comm3_available());
 //	usb_printf("ux:%f|uy:%f|uz:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y,  uwb->uwb_position.z, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
 //	usb_printf("gps_position lat:%lf ,lon:%lf ,alt:%lf \r\n" , (double)gps_position->lat/10000000.0,(double)gps_position->lon/10000000.0,(double)gps_position->alt/1000000.0);
 //	usb_printf("l:%d|%d|%d\n",*(__IO uint8_t*)((uint32_t)0x081D0000),*(__IO uint8_t*)((uint32_t)0x081D0001),*(__IO uint8_t*)((uint32_t)0x081D0002));
@@ -2572,7 +2644,7 @@ void debug(void){
 //	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("ax:%f\n",param.accel_offdiagonals.value.x);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
-//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%d,6:%d,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),mav_channels_in[0],mav_channels_in[1],get_channel_7(),get_channel_8());
+//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%d,6:%d,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),input_channel_roll(),input_channel_pitch(),get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
 //	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());
 //	usb_printf("yaw:%f,yaw_throttle:%f\n",yaw_deg,motors->get_yaw());

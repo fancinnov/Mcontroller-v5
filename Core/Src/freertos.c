@@ -144,6 +144,14 @@ const osThreadAttr_t testTask_attributes = {
 };
 /// (3) Declare task function
 void TestTask(void *argument);
+
+/* *************************************************
+ * ****************Dev code begin*******************/
+// Warning! Developer can add your new code here!
+
+/* ****************Dev code end*********************
+ * *************************************************/
+
 /* USER CODE END FunctionPrototypes */
 
 void InitTask(void *argument);
@@ -246,6 +254,14 @@ void MX_FREERTOS_Init(void) {
   /// param3:     task attributes that step(2) defined;
   /// return:	  task handler that step(1) declared;
   testTaskHandle = osThreadNew(TestTask, NULL, &testTask_attributes);
+
+  /* *************************************************
+   * ****************Dev code begin*******************/
+  // Warning! Developer can add your new code here!
+
+  /* ****************Dev code end*********************
+   * *************************************************/
+
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -267,7 +283,7 @@ void InitTask(void *argument)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN InitTask */
   sense_adc1_value=(uint16_t*)pvPortMalloc(2*sizeof(uint16_t));
-  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM|MLINK_ESP);
+
   TxBuffer_comm0=(uint8_t*)pvPortMalloc(USB_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm1=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm2=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
@@ -291,15 +307,16 @@ void InitTask(void *argument)
   rbInit(&ringbuffer_comm4_send, TxBuffer_comm4, URAT_DMA_Buffer_length);
 
   usb_printf("\r\nSystem initializing ...\r\n");
+  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, DEV_COMM, MAV_COMM|MLINK_ESP);
   FRAM_Init();
   update_dataflash();
   RC_Input_Init(RC_INPUT_SBUS);
   wifi_init();
-  motors_init();
   IMU_Init();
   MAG_Init();
   while(BARO_Init());
   gyro_calibrate();
+  motors_init();
   attitude_init();
   pos_init();
   if(!uwb_init()){
@@ -563,6 +580,14 @@ void UWBTask(void *argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 /// Add new thread application below
+
+/* *************************************************
+ * ****************Dev code begin*******************/
+// Warning! Developer can add your new code here!
+
+/* ****************Dev code end*********************
+ * *************************************************/
+
 /// (5) define task function that step(3) declared
 void TestTask(void *argument){
 	while(!initialed_task);

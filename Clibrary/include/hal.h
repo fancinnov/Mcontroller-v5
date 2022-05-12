@@ -189,6 +189,7 @@ extern PWM_Channel pwm_channel;
 extern ROBOT_STATE robot_state;
 
 /****************c/c++ interface*******************************/
+void rc_range_init(void);
 void motors_init(void);
 void attitude_init(void);
 void pos_init(void);
@@ -382,11 +383,11 @@ extern uint8_t COMM_0, COMM_1, COMM_2, COMM_3, COMM_4;
 void config_comm(uint8_t comm0, uint8_t comm1, uint8_t comm2, uint8_t comm3, uint8_t comm4);
 
 /*****************************以下为usb+串口接收数据相关函数******************************/
-uint8_t get_comm0_available(void);	//判断usb口是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
-uint8_t get_comm1_available(void);	//判断串口1是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口1是自定义模式 DEV_COMM 时才有效)
-uint8_t get_comm2_available(void);	//判断串口2是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口2是自定义模式 DEV_COMM 时才有效)
-uint8_t get_comm3_available(void);	//判断串口3是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口3是自定义模式 DEV_COMM 时才有效)
-uint8_t get_comm4_available(void);	//判断串口4是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口4是自定义模式 DEV_COMM 时才有效)
+uint16_t get_comm0_available(void);	//判断usb口是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
+uint16_t get_comm1_available(void);	//判断串口1是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口1是自定义模式 DEV_COMM 时才有效)
+uint16_t get_comm2_available(void);	//判断串口2是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口2是自定义模式 DEV_COMM 时才有效)
+uint16_t get_comm3_available(void);	//判断串口3是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口3是自定义模式 DEV_COMM 时才有效)
+uint16_t get_comm4_available(void);	//判断串口4是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在串口4是自定义模式 DEV_COMM 时才有效)
 
 uint8_t get_comm0_data(void);	//读取USB口收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
 uint8_t get_comm1_data(void);	//读取串口1收到的数据,每调用一次可以读取1个字节;	(注意：该函数只有在串口1是自定义模式 DEV_COMM 时才有效)
@@ -638,6 +639,7 @@ HAL_StatusTypeDef sbus_output_buf(uint8_t* buf, uint16_t size);
 HAL_StatusTypeDef sbus_output_buf_delayms(uint8_t* buf, uint16_t size, uint32_t timeout);
 void RC_Input_Init(uint8_t mode);//初始化遥控接收机（PPM/SBUS）
 void RC_Input_Loop(void);//接收遥控器数据
+void rc_range_cal(void);
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
 bool get_rc_channels_override(void);//获取Mavlink覆盖遥控器信号
 extern uint16_t *mav_channels_in;
@@ -674,6 +676,13 @@ float get_channel_5(void); 			//5通道，range: 0~1
 float get_channel_6(void); 			//6通道，range: 0~1
 float get_channel_7(void); 			//7通道，range: 0~1
 float get_channel_8(void); 			//8通道，range: 0~1
+
+/* *************************************************
+ * ****************Dev code begin*******************/
+// Warning! Developer can add your new code here!
+
+/* ****************Dev code end*********************
+ * *************************************************/
 
 #ifdef __cplusplus
 }

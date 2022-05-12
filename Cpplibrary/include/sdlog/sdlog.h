@@ -19,13 +19,6 @@ private:
 		LOG_END,
 	}Log_Type;
 
-	typedef enum{
-		Logger_Idle = 0,
-		Logger_Open,
-		Logger_Close,
-		Logger_Record
-	}Logger_Status;
-
 	UINT log_num;
 	FIL log_file;
 	FIL index_file;
@@ -33,7 +26,6 @@ private:
 	UINT btr=4;         /* Number of bytes to read */
 	UINT br;	        /* number of bytes read */
 	uint16_t index_log;
-	Logger_Status m_Logger_Status;
 	FRESULT res;
 	UINT len_filename;
 	char file_name[10];
@@ -47,6 +39,14 @@ private:
 
 public:
 	SDLog(void);
+
+	typedef enum{
+		Logger_Idle = 0,
+		Logger_Open,
+		Logger_Close,
+		Logger_Record
+	}Logger_Status;
+	Logger_Status m_Logger_Status;
 
 	void Logger_Update(void);
 	void Logger_Enable(void);

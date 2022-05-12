@@ -24,12 +24,13 @@ public:
 	void set_param_vector3f(uint16_t num, Vector3f value);
 	void set_param_pid(uint16_t num, float p, float i, float d, float i_max, float filt_hz);
 	void set_param_pid_2d(uint16_t num, float p, float i, float d, float i_max, float filt_hz, float filt_d_hz);
+	void set_param_uint16_channel8(uint16_t num, uint16_t *channel);
 	void get_param_uint8(uint16_t num, uint8_t &value);
 	void get_param_float(uint16_t num, float &value);
 	void get_param_vector3f(uint16_t num, Vector3f &value);
 	void get_param_pid(uint16_t num, float &p, float &i, float &d, float &i_max, float &filt_hz);
 	void get_param_pid_2d(uint16_t num, float &p, float &i, float &d, float &i_max, float &filt_hz, float &filt_d_hz);
-
+	void get_param_uint16_channel8(uint16_t num, uint16_t *channel);
 private:
 	uint16_t addr_num_max=0;
 	uint8_t addr[2];
