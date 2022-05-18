@@ -14,10 +14,15 @@ static float channel_throttle=0.0;//油门通道控制是否启动电机
 
 bool mode_mecanum_init(void)
 {
+	if(motors->get_armed()||motors->get_interlock()){//电机未锁定,禁止切换至该模式
+		Buzzer_set_ring_type(BUZZER_ERROR);
+		return false;
+	}
 	channel_roll = 0.0;
 	channel_yaw = 0.0;
 	channel_pitch = 0.0;
 	channel_throttle=0.0;
+	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
 	usb_printf("switch mode mecanum!\n");
 	return true;
 }

@@ -10,11 +10,13 @@ bool mode_stabilize_init(void){
 	// if landed and the mode we're switching from does not have manual throttle and the throttle stick is too high
 	if (motors->get_armed() && ap->land_complete && !has_manual_throttle() &&
 			(get_pilot_desired_throttle(get_channel_throttle(), 0.0f) > get_non_takeoff_throttle())) {
+		Buzzer_set_ring_type(BUZZER_ERROR);
 		return false;
 	}
 	// set target altitude to zero for reporting
 	pos_control->set_alt_target(0);
 	set_manual_throttle(true);//设置为手动油门
+	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
 	usb_printf("switch mode stabilize!\n");
 	return true;
 }

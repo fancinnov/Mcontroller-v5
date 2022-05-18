@@ -10,14 +10,17 @@ static float target_yaw=0.0f;
 static float thrust=0.0f;
 static bool jump=false;
 bool mode_autonav_init(void){
+	if(motors->get_armed()||motors->get_interlock()){//电机未锁定,禁止切换至该模式
+		Buzzer_set_ring_type(BUZZER_ERROR);
+		return false;
+	}
 	if(!pos_control->is_active_z()){
 		// initialize position and desired velocity
 		pos_control->set_alt_target_to_current_alt();
 		pos_control->set_desired_velocity_z(get_vel_z());
-	}else{
-		return false;
 	}
 	set_manual_throttle(false);//设置为自动油门
+	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
 	usb_printf("switch mode autonav!\n");
 	return true;
 }

@@ -319,12 +319,14 @@ void InitTask(void *argument)
 	  osThreadTerminate(uwbTaskHandle);
   }
   if(mode_init()){
+	  Buzzer_set_ring_type(BUZZER_INITIALED);
 	  usb_printf("System initialized succeed!\r\n");
   }else{
+	  Buzzer_set_ring_type(BUZZER_ERROR);
 	  usb_printf("System initialized failed!\r\n");
   }
+  osDelay(1000);
   initialed_task=true;//当初始化未完成时，只运行buzzer task
-  Buzzer_set_ring_type(BUZZER_INITIALED);
   osThreadTerminate(initTaskHandle);//终结线程，并回收内存
   /* USER CODE END InitTask */
 }
@@ -339,7 +341,9 @@ void InitTask(void *argument)
 void Loop200hzTask(void *argument)
 {
   /* USER CODE BEGIN Loop200hzTask */
-  while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -360,7 +364,9 @@ void Loop200hzTask(void *argument)
 void HeartBeatTask(void *argument)
 {
   /* USER CODE BEGIN HeartBeatTask */
-  while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   const TickType_t TimeIncrement= pdMS_TO_TICKS(1000); // 1s
   TickType_t PreviousWakeTime=xTaskGetTickCount();
   /* Infinite loop */
@@ -385,7 +391,9 @@ void HeartBeatTask(void *argument)
 void Loop400hzTask(void *argument)
 {
   /* USER CODE BEGIN Loop400hzTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -418,7 +426,9 @@ void Loop400hzTask(void *argument)
 void Loop100hzTask(void *argument)
 {
   /* USER CODE BEGIN Loop100hzTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -464,7 +474,9 @@ void BuzzerTask(void *argument)
 void MavSendTask(void *argument)
 {
   /* USER CODE BEGIN MavSendTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -483,7 +495,9 @@ void MavSendTask(void *argument)
 void Loop50hzTask(void *argument)
 {
   /* USER CODE BEGIN Loop50hzTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -507,7 +521,9 @@ void Loop50hzTask(void *argument)
 void SDLogTask(void *argument)
 {
   /* USER CODE BEGIN SDLogTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
   /* Infinite loop */
   for(;;)
   {
@@ -526,7 +542,9 @@ void SDLogTask(void *argument)
 void GPSTask(void *argument)
 {
   /* USER CODE BEGIN GPSTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
 #if USE_GPS==0
 	osThreadTerminate(gpsTaskHandle);
 #endif
@@ -562,7 +580,9 @@ void GPSTask(void *argument)
 void UWBTask(void *argument)
 {
   /* USER CODE BEGIN UWBTask */
-	while(!initialed_task);
+  while(!initialed_task){
+	  osDelay(1000);
+  }
 #if USE_UWB==0
 	osThreadTerminate(uwbTaskHandle);
 #endif
@@ -586,7 +606,9 @@ void UWBTask(void *argument)
 
 /// (5) define task function that step(3) declared
 void TestTask(void *argument){
-	while(!initialed_task);
+	while(!initialed_task){
+		osDelay(1000);
+	}
 //	TaskStatus_t taskstatus;		// NOTED: add codes that don't need to loop
 	for(;;)							// NOTED: if codes need to loop, must add into for(;;){} or while(1){} or some other looper.
 	{
