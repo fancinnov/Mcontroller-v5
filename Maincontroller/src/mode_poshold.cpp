@@ -10,13 +10,14 @@ static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f;
 
 bool mode_poshold_init(void){
 	if(!pos_control->is_active_z()){
-		// set target altitude to zero for reporting
+		// initialize position and desired velocity
 		pos_control->set_alt_target_to_current_alt();
 		pos_control->set_desired_velocity_z(get_vel_z());
 	}else{
 		return false;
 	}
 	set_manual_throttle(false);//设置为自动油门
+	usb_printf("switch mode poshold!\n");
 	return true;
 }
 

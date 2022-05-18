@@ -163,7 +163,7 @@
 #define VIB_LAND_THR 6.0f
 #define ACRO_YAW_EXPO 0.0f
 #define ACRO_YAW_P 4.5f
-#define MAN_THR_FILT_HZ 0.1f
+#define MAN_THR_FILT_HZ 0.5f
 
 bool arm_motors(void);
 void disarm_motors(void);
@@ -242,6 +242,17 @@ float get_channel_yaw_angle(void);
 void Logger_Cat_Callback(void);
 void Logger_Data_Callback(void);
 
+bool mode_althold_init(void);
+void mode_althold(void);
+bool mode_stabilize_init(void);
+void mode_stabilize(void);
+bool mode_autonav_init(void);
+void mode_autonav(void);
+bool mode_poshold_init(void);
+void mode_poshold(void);
+bool mode_mecanum_init(void);
+void mode_mecanum(void);
+
 // Documentation of GLobals:
 typedef union {
   struct {
@@ -312,6 +323,42 @@ typedef enum{
 	tag=1,
 	anchor
 }uwb_modes;
+
+typedef enum {
+	STATE_NONE=0,
+	STATE_TAKEOFF,
+	STATE_FLYING,
+	STATE_FLYING_VIRTUAL,
+	STATE_LANDED,
+	STATE_STOP,
+	STATE_CLIMB,
+	STATE_DRIVE
+}ROBOT_STATE;
+extern ROBOT_STATE robot_state;
+
+typedef enum {
+	MODE_AIR=0,
+	MODE_MECANUM,
+	MODE_SPIDER,
+	MODE_UGV,
+}ROBOT_MAIN_MODE;
+extern ROBOT_MAIN_MODE robot_main_mode;
+
+typedef enum {
+	MODE_STABILIZE=0,
+	MODE_ALTHOLD,
+	MODE_POSHOLD,
+	MODE_AUTONAV,
+	MODE_MECANUM_A,
+	MODE_MECANUM_V,
+	MODE_MECANUM_P,
+	MODE_SPIDER_A,
+	MODE_SPIDER_P,
+	MODE_UGV_A,
+	MODE_UGV_V,
+	MODE_UGV_P
+}ROBOT_SUB_MODE;
+extern ROBOT_SUB_MODE robot_sub_mode;
 
 typedef struct{
 	// @Param: acro_y_expo

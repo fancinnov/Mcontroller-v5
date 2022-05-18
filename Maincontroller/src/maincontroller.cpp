@@ -843,7 +843,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 					rc_channels_sendback=false;					//关闭遥控通道回传
 				}else if(rc_channels.target_component==1){		/***遥控校准已确认***/
 					set_rc_channels_override(false);			//清除rc_channels_override把控制权给遥控器
-					rc_channels_sendback=false;					//关闭遥控通道回传
+					rc_channels_sendback=true;					//启动遥控通道回传
 					param->channel_range.channel[0]=rc_channels.chan1_raw;	//ch1_min
 					param->channel_range.channel[1]=rc_channels.chan2_raw;	//ch2_min
 					param->channel_range.channel[2]=rc_channels.chan3_raw;	//ch3_min
@@ -2644,7 +2644,7 @@ void debug(void){
 //	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("ax:%f\n",param.accel_offdiagonals.value.x);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
-//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%d,6:%d,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),input_channel_roll(),input_channel_pitch(),get_channel_7(),get_channel_8());
+//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
 //	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());
 //	usb_printf("yaw:%f,yaw_throttle:%f\n",yaw_deg,motors->get_yaw());
@@ -2655,7 +2655,7 @@ void debug(void){
 //	usb_printf("dx:%f, dy:%f, dz:%f\n",param->mag_diagonals.value.x, param->mag_diagonals.value.y, param->mag_diagonals.value.z);
 //	usb_printf("odx:%f, ody:%f, odz:%f\n",param->mag_offdiagonals.value.x, param->mag_offdiagonals.value.y, param->mag_offdiagonals.value.z);
 //	usb_printf("motor:%d|%d|%d|%d\n",pwm_channel.motor[0], motors->get_armed(), get_soft_armed(), motors->get_interlock());
-//	s2_printf("%d\n",HAL_GetTick());
+//	usb_printf("%d\n",robot_sub_mode);
 //  usb_printf("vib_value:%f, vib_angle:%f\n", get_vib_value(), get_vib_angle_z());
 //	FMU_Servo_Set_Value(1,1000);
 }

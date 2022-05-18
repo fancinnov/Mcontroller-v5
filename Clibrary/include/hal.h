@@ -137,6 +137,7 @@ typedef enum {
 	BUZZER_ERROR_2,
 	BUZZER_ARMED,
 	BUZZER_DISARM,
+	BUZZER_ESC,
 }BUZZER_TYPE;
 
 typedef enum ROBOT_TYPE{
@@ -153,17 +154,6 @@ typedef enum MOTOR_TYPE{
 	BRUSH,
 	SERVO,
 }MOTOR_TYPE;
-
-typedef enum {
-	STATE_NONE=0,
-	STATE_TAKEOFF,
-	STATE_FLYING,
-	STATE_FLYING_VIRTUAL,
-	STATE_LANDED,
-	STATE_STOP,
-	STATE_CLIMB,
-	STATE_DRIVE
-}ROBOT_STATE;
 
 extern DMA_HandleTypeDef hdma_uart4_rx;
 extern DMA_HandleTypeDef hdma_uart7_rx;
@@ -186,7 +176,6 @@ extern MS5607_Data ms5607_data;
 extern SPL06_Data spl06_data;
 extern MS5611_Data ms5611_data;
 extern PWM_Channel pwm_channel;
-extern ROBOT_STATE robot_state;
 
 /****************c/c++ interface*******************************/
 void rc_range_init(void);
@@ -217,16 +206,8 @@ void reset_dataflash(void);
 void update_dataflash(void);
 void lock_motors_check(void);
 void arm_motors_check(void);
-bool mode_althold_init(void);
-void mode_althold(void);
-bool mode_stabilize_init(void);
-void mode_stabilize(void);
-bool mode_autonav_init(void);
-void mode_autonav(void);
-bool mode_poshold_init(void);
-void mode_poshold(void);
-bool mode_mecanum_init(void);
-void mode_mecanum(void);
+bool mode_init(void);
+void mode_update(void);
 void debug(void);
 /****************c/c++ interface*******************************/
 bool get_task_initialed(void);

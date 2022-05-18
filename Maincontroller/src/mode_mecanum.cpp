@@ -18,6 +18,7 @@ bool mode_mecanum_init(void)
 	channel_yaw = 0.0;
 	channel_pitch = 0.0;
 	channel_throttle=0.0;
+	usb_printf("switch mode mecanum!\n");
 	return true;
 }
 

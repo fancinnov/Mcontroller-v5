@@ -46,8 +46,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-ROBOT_STATE robot_state=STATE_NONE;
-__IO uint16_t volt_sense_adc_value, current_sense_adc_value, *sense_adc1_value;
 RingBuffer ringbuffer_usb, ringbuffer_comm1, ringbuffer_comm2, ringbuffer_comm3, ringbuffer_comm4;
 RingBuffer ringbuffer_usb_send, ringbuffer_comm1_send, ringbuffer_comm2_send, ringbuffer_comm3_send, ringbuffer_comm4_send;
 static uint8_t *TxBuffer_comm0, *TxBuffer_comm1, *TxBuffer_comm2, *TxBuffer_comm3, *TxBuffer_comm4;//串口transmit buffer
@@ -282,8 +280,6 @@ void InitTask(void *argument)
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN InitTask */
-  sense_adc1_value=(uint16_t*)pvPortMalloc(2*sizeof(uint16_t));
-
   TxBuffer_comm0=(uint8_t*)pvPortMalloc(USB_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm1=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm2=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
@@ -322,7 +318,7 @@ void InitTask(void *argument)
   if(!uwb_init()){
 	  osThreadTerminate(uwbTaskHandle);
   }
-  if(mode_autonav_init()){
+  if(mode_init()){
 	  usb_printf("System initialized succeed!\r\n");
   }else{
 	  usb_printf("System initialized failed!\r\n");
@@ -407,7 +403,7 @@ void Loop400hzTask(void *argument)
 //	  ekf_rf_alt();
 	  ekf_odom_xy();
 //	  ekf_gnss_xy();
-	  mode_autonav();
+	  mode_update();
   }
   /* USER CODE END Loop400hzTask */
 }
@@ -591,7 +587,7 @@ void UWBTask(void *argument)
 /// (5) define task function that step(3) declared
 void TestTask(void *argument){
 	while(!initialed_task);
-	TaskStatus_t taskstatus;		// NOTED: add codes that don't need to loop
+//	TaskStatus_t taskstatus;		// NOTED: add codes that don't need to loop
 	for(;;)							// NOTED: if codes need to loop, must add into for(;;){} or while(1){} or some other looper.
 	{
 	  debug();
