@@ -358,7 +358,7 @@ extern uint8_t COMM_0, COMM_1, COMM_2, COMM_3, COMM_4;
  * @param:
  * comm0~comm4可以配置为下列可选参数,参数及其含义如下：
  * (1)DEV_COMM 		自定义模式
- * (2)MAV_COMM  	Mavlink模式
+ * (2)MAV_COMM  	Mavlink模式  注意：在MAV_COMM模式下如果串口连接了Mlink Wifi数传模块, 则需要配置为MAV_COMM|MLINK_ESP
  * (3)GPS_COMM  	GPS模式
  * (4)TFMINI_COMM  	TFmini激光测距仪
  * **************************************/
@@ -379,7 +379,8 @@ uint8_t get_comm4_data(void);	//读取串口4收到的数据,每调用一次可�
 
 /*****************************以下为usb+串口发送数据相关函数*******************************/
 /**
-  * @brief  采用缓冲的方式从usb或串口发送数据（强烈推荐采用这种方式）
+  * @brief  采用缓冲的方式从usb或串口发送数据（强烈推荐对于实时性要求不高的场景采用这种方式,因为这种方式更节省资源）
+  * 		通过缓冲方式发送的数据是非实时的,数据首先存入缓冲区,然后由系统以10hz左右的频率集中发送,缓存区大小为2KB
   * @param  chan: 端口号（MAVLINK_COMM_0为USB;MAVLINK_COMM_1~MAVLINK_COMM_4为串口1~4）
   * @param  buf: 待发送数据的数组起始地址
   * @param  len: 待发送数据的数组长度
@@ -542,12 +543,12 @@ void Motor_Set_Value(uint8_t i, uint16_t value);
 void Servo_Set_Value(uint8_t i, uint16_t value);
 
 /**
-  * @brief  把配置好的所有电机脉宽值传递给底层寄存器
+  * @brief  把配置好的所有电机脉宽值传递给底层寄存器,系统函数用户无需调用
   */
 void set_motors_value(void);
 
 /**
-  * @brief  把配置好的所有舵机脉宽值传递给底层寄存器
+  * @brief  把配置好的所有舵机脉宽值传递给底层寄存器,系统函数用户无需调用
   */
 void set_servos_value(void);
 

@@ -11,9 +11,6 @@
 
 #include "common.h"
 
-#define _float_to_byte(buf, wire_offset, f)    *(float *)&buf[wire_offset] = f
-#define _byte_to_float(buf, wire_offset, f)    f = *(float *)&buf[wire_offset]
-
 class DataFlash{
 public:
 	DataFlash(){}
