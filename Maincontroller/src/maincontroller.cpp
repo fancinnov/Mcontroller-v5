@@ -856,6 +856,11 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 					rc_range_init();
 					send_mavlink_commond_ack(chan, (MAV_CMD)1, MAV_CMD_ACK_OK);
 				}else if(rc_channels.target_component==2){		/***遥控校准已启动***/
+					mav_channels_in[0]=1500;
+					mav_channels_in[1]=1500;
+					mav_channels_in[2]=1500;
+					mav_channels_in[3]=1500;
+					override_rc_channels(mav_channels_in);		//重置前四通道
 					set_rc_channels_override(false);			//清除rc_channels_override把控制权给遥控器
 					rc_channels_sendback=true;					//启动遥控通道回传
 					send_mavlink_commond_ack(chan, (MAV_CMD)2, MAV_CMD_ACK_OK);
@@ -2657,5 +2662,6 @@ void debug(void){
 //	usb_printf("motor:%d|%d|%d|%d\n",pwm_channel.motor[0], motors->get_armed(), get_soft_armed(), motors->get_interlock());
 //	usb_printf("%d\n",robot_sub_mode);
 //  usb_printf("vib_value:%f, vib_angle:%f\n", get_vib_value(), get_vib_angle_z());
-//	FMU_Servo_Set_Value(1,1000);
+//	Servo_Set_Value(2,1500);
+//	Servo_Set_Value(3,1500);
 }

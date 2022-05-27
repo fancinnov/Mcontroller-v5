@@ -58,14 +58,7 @@ void mode_stabilize(void){
 			// correct the esc
 			if (esc_counter == 2000) {
 				Buzzer_set_ring_type(BUZZER_ESC);
-				Motor_Set_Value(1, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(2, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(3, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(4, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(5, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(6, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(7, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
-				Motor_Set_Value(8, PWM_ESC_MIN+(PWM_ESC_MAX-PWM_ESC_MIN)*throttle);
+				motors->set_throttle_passthrough_for_motors(throttle);//只校准当前机型使能的电机
 			}
 			if(esc_delay>0){
 				esc_delay--;

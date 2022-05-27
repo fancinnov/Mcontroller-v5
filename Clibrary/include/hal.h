@@ -529,7 +529,7 @@ void reset_servo_freq(uint16_t freq);
 /**
   * @brief  配置电机控制引脚输出的pwm脉宽.
   * @param  i: 电机号（1~8）
-  * @param  value: pwm脉宽（1000~2000）
+  * @param  value: pwm脉宽(无刷电机1000~2000;有刷电机0~2500)
   * @retval None
   */
 void Motor_Set_Value(uint8_t i, uint16_t value);
@@ -625,6 +625,7 @@ void RC_Input_Loop(void);//接收遥控器数据
 void rc_range_cal(void);
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
 bool get_rc_channels_override(void);//获取Mavlink覆盖遥控器信号
+void override_rc_channels(uint16_t *pwm_in);
 extern uint16_t *mav_channels_in;
 
 //初始化wifi模组

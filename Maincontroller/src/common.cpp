@@ -1,10 +1,10 @@
 /*
- * cpp.cpp
+ * common.cpp
  *
- *  Created on: 2020.xx.xx
+ *  Created on: 2020.07.16
  *      Author: JackyPan
  */
-#include "common.h"
+#include "maincontroller.h"
 
 static bool _soft_armed=false;//心跳包中表示是否解锁的标志位
 static bool _thr_force_decrease=false;//强制油门下降
