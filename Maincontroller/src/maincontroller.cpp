@@ -136,7 +136,8 @@ float get_vib_angle_z(void){//震动向量与大地坐标系z轴的夹角
 float get_channel_roll_angle(void){return get_channel_roll()*ROLL_PITCH_YAW_INPUT_MAX;}
 float get_channel_pitch_angle(void){return get_channel_pitch()*ROLL_PITCH_YAW_INPUT_MAX;}
 float get_channel_yaw_angle(void){return get_channel_yaw()*ROLL_PITCH_YAW_INPUT_MAX;}
-
+Location get_gnss_origin_pos(void){return gnss_origin_pos;}
+Location get_gnss_current_pos(void){return gnss_current_pos;}
 float get_ned_pos_x(void){return ned_current_pos.x;}
 float get_ned_pos_y(void){return ned_current_pos.y;}
 float get_ned_pos_z(void){return ned_current_pos.z;}
@@ -181,6 +182,7 @@ void update_dataflash(void){
 		dataflash->set_param_vector3f(param->accel_offdiagonals.num, param->accel_offdiagonals.value);
 		dataflash->set_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
 		dataflash->set_param_uint16_channel8(param->channel_range.num, param->channel_range.channel);
+		dataflash->set_param_float(param->auto_land_speed.num, param->auto_land_speed.value);
 		dataflash->set_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 		dataflash->set_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
 		dataflash->set_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -234,6 +236,7 @@ void update_dataflash(void){
 		dataflash->get_param_vector3f(param->accel_offdiagonals.num, param->accel_offdiagonals.value);
 		dataflash->get_param_vector3f(param->mag_offsets.num, param->mag_offsets.value);
 		dataflash->get_param_uint16_channel8(param->channel_range.num, param->channel_range.channel);
+		dataflash->get_param_float(param->auto_land_speed.num, param->auto_land_speed.value);
 		dataflash->get_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 		dataflash->get_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
 		dataflash->get_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -459,6 +462,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							param->throttle_midzone.value=THR_MIDZ_DEFAULT;
 							param->pilot_speed_dn.value=PILOT_VELZ_DOWN_MAX;
 							param->pilot_speed_up.value=PILOT_VELZ_UP_MAX;
+							param->auto_land_speed.value=AUTO_LAND_SPEED;
 							param->rangefinder_gain.value=RANGEFINDER_GAIN_DEFAULT;
 							param->angle_max.value=DEFAULT_ANGLE_MAX;
 							param->pilot_accel_z.value=PILOT_ACCEL_Z_DEFAULT;
@@ -474,6 +478,7 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							dataflash->set_param_float(param->throttle_midzone.num, param->throttle_midzone.value);
 							dataflash->set_param_float(param->pilot_speed_dn.num, param->pilot_speed_dn.value);
 							dataflash->set_param_float(param->pilot_speed_up.num, param->pilot_speed_up.value);
+							dataflash->set_param_float(param->auto_land_speed.num, param->auto_land_speed.value);
 							dataflash->set_param_float(param->rangefinder_gain.num, param->rangefinder_gain.value);
 							dataflash->set_param_float(param->angle_max.num, param->angle_max.value);
 							dataflash->set_param_float(param->pilot_accel_z.num, param->pilot_accel_z.value);
@@ -794,6 +799,14 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
 							command_long.param1=25.0f;
 							command_long.param2=param->vib_land.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,26.0f)){
+							param->auto_land_speed.value=cmd.param2;
+							dataflash->set_param_float(param->auto_land_speed.num, param->auto_land_speed.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=26.0f;
+							command_long.param2=param->auto_land_speed.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
 						}
@@ -1188,6 +1201,11 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 
 	command_long.param1=25.0f;
 	command_long.param2=param->vib_land.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=26.0f;
+	command_long.param2=param->auto_land_speed.value;
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
 
@@ -2647,7 +2665,7 @@ void debug(void){
 //	usb_printf("vib:%f\n", param->vib_land.value);
 //	s2_printf("x:%f,y:%f\n", x_target, y_target);
 //	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
-//	usb_printf("ax:%f\n",param.accel_offdiagonals.value.x);
+//	usb_printf("speed:%f\n",param->auto_land_speed.value);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
 //	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));

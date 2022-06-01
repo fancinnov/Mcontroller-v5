@@ -32,7 +32,7 @@ void mode_stabilize(void){
 		zero_throttle_and_relax_ac();
 		attitude->rate_controller_run();
 		motors->output();
-
+		robot_state=STATE_STOP;
 		/*
 		 * 以下为电调校准模式说明:
 		 * (1) 在channel8电机硬件锁定状态下, 将油门推到最高, 偏航推到最左, 持续5s进入电调校准模式;
@@ -69,7 +69,7 @@ void mode_stabilize(void){
 		}
 		return;
 	}
-
+	robot_state=STATE_FLYING;
 	// clear landing flag
 	set_land_complete(false);
 

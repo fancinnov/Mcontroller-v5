@@ -9,6 +9,7 @@
 static bool _soft_armed=false;//心跳包中表示是否解锁的标志位
 static bool _thr_force_decrease=false;//强制油门下降
 ROBOT_STATE robot_state=STATE_NONE;
+ROBOT_STATE robot_state_desired=STATE_NONE;
 ROBOT_MAIN_MODE robot_main_mode=MODE_AIR;
 ROBOT_SUB_MODE robot_sub_mode=MODE_STABILIZE;
 
@@ -49,9 +50,27 @@ void mode_update(void){
 	float ch5=get_channel_5();//用于机器人主模态切换
 	float ch6=get_channel_6();//用于机器人子模态切换
 	if(ch5>0.9){//无人车模式
-		robot_main_mode=MODE_UGV;
+		robot_state_desired=STATE_DRIVE;
 	}else{//无人机模式
-		robot_main_mode=MODE_AIR;
+		if(robot_main_mode==MODE_UGV){
+			robot_state_desired=STATE_FLYING;//从UGV切换过来时，自动起飞
+		}else{
+			robot_state_desired=STATE_STOP;//为保证安全,其它模式切换过来进入电机停转模式
+		}
+	}
+	switch(robot_state){
+	case STATE_STOP:
+		if(robot_state_desired==STATE_DRIVE){
+			robot_main_mode=MODE_UGV;
+		}
+		break;
+	case STATE_DRIVE:
+		if(robot_state_desired==STATE_FLYING){
+			robot_main_mode=MODE_AIR;
+		}
+		break;
+	default:
+		break;
 	}
 	switch(robot_main_mode){
 	case MODE_AIR:
@@ -85,6 +104,7 @@ void mode_update(void){
 	case MODE_SPIDER:
 		break;
 	case MODE_UGV:
+		robot_state=STATE_DRIVE;
 		if(ch6>0.7){
 			//无人车遥控直通模式
 			if(robot_sub_mode!=MODE_UGV_A){

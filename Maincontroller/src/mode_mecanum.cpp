@@ -29,7 +29,7 @@ bool mode_mecanum_init(void)
 
 void mode_mecanum(void)
 {
-
+	robot_state=STATE_DRIVE;
 	//(1)首先获取遥控器通道值
 	channel_roll = get_channel_roll(); //range(-1,1)
 	channel_yaw = get_channel_yaw(); //range(-1,1)

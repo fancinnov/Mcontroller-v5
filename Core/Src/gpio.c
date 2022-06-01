@@ -68,8 +68,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOD, FRAM_CS_Pin|FMU_LED7_Pin|BARO_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, FMU_GPIO5_Pin|FMU_GPIO7_Pin|FMU_GPIO8_Pin|FMU_GPIO1_Pin
-                          |FMU_GPIO3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, FMU_GPIO5_Pin|FMU_GPIO7_Pin|FMU_GPIO1_Pin|FMU_GPIO3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, FMU_OE2_Pin|FMU_GPIO6_Pin, GPIO_PIN_RESET);
@@ -78,7 +77,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, FMU_LED6_Pin|FMU_LED5_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SBUS_OUT_EN_GPIO_Port, SBUS_OUT_EN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(FMU_GPIO8_GPIO_Port, FMU_GPIO8_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PEPin PEPin */
   GPIO_InitStruct.Pin = VDD_3V3_SENSORS_EN_Pin|FMU_LED4_Pin;
@@ -134,9 +133,9 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(SDIO_IPS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin PDPin
-                           PDPin PDPin PDPin */
-  GPIO_InitStruct.Pin = FRAM_CS_Pin|FMU_GPIO5_Pin|FMU_GPIO7_Pin|FMU_GPIO8_Pin
-                          |FMU_GPIO1_Pin|FMU_GPIO3_Pin|BARO_CS_Pin;
+                           PDPin PDPin */
+  GPIO_InitStruct.Pin = FRAM_CS_Pin|FMU_GPIO5_Pin|FMU_GPIO7_Pin|FMU_GPIO1_Pin
+                          |FMU_GPIO3_Pin|BARO_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -170,11 +169,11 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = SBUS_OUT_EN_Pin;
+  GPIO_InitStruct.Pin = FMU_GPIO8_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SBUS_OUT_EN_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(FMU_GPIO8_GPIO_Port, &GPIO_InitStruct);
 
 }
 

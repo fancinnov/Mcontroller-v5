@@ -58,6 +58,12 @@ void mode_althold(void){
 	switch (althold_state) {
 
 	case AltHold_MotorStopped:
+		robot_state=STATE_STOP;
+		if(robot_state_desired==STATE_FLYING||robot_state_desired==STATE_TAKEOFF){
+			if(target_climb_rate<=0){//油门在低位保证安全
+				arm_motors();
+			}
+		}
 		motors->set_desired_spool_state(Motors::DESIRED_SHUT_DOWN);
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		attitude->reset_rate_controller_I_terms();
@@ -68,6 +74,7 @@ void mode_althold(void){
 		break;
 
 	case AltHold_Takeoff:
+		robot_state=STATE_TAKEOFF;
 		// set motors to full range
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
@@ -94,6 +101,7 @@ void mode_althold(void){
 		break;
 
 	case AltHold_Landed:
+		robot_state=STATE_LANDED;
 		// set motors to spin-when-armed if throttle below deadzone, otherwise full range (but motors will only spin at min throttle)
 		if (target_climb_rate < 0.0f) {
 			motors->set_desired_spool_state(Motors::DESIRED_SPIN_WHEN_ARMED);
@@ -110,13 +118,11 @@ void mode_althold(void){
 		break;
 
 	case AltHold_Flying:
+		robot_state=STATE_FLYING;
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 		// call attitude controller
 		target_yaw+=target_yaw_rate*_dt;
 		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
-
-		// surface tracking that adjust climb rate using rangefinder
-		target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);
 
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
 			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用
@@ -124,6 +130,14 @@ void mode_althold(void){
 		}else{
 			set_thr_force_decrease(false);
 		}
+
+		if(robot_state_desired==STATE_DRIVE||robot_state_desired==STATE_LANDED){//自动降落
+			target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
+		}
+
+		// surface tracking that adjust climb rate using rangefinder
+		target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);
+
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 

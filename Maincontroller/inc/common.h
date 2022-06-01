@@ -112,6 +112,9 @@
 #ifndef PILOT_VELZ_DOWN_MAX
  # define PILOT_VELZ_DOWN_MAX              50.0f         // maximum vertical velocity down in cm/s
 #endif
+#ifndef AUTO_LAND_SPEED
+ # define AUTO_LAND_SPEED              30.0f         // maximum vertical velocity down in cm/s
+#endif
 #ifndef PILOT_ACCEL_Z_DEFAULT
  # define PILOT_ACCEL_Z_DEFAULT       100.0f         // vertical acceleration in cm/s/s while altitude is under pilot control
 #endif
@@ -204,7 +207,8 @@ float get_rangefinder_alt_target(void);		//测距仪的目标高度
 
 void ekf_z_reset(void);
 void ekf_xy_reset(void);
-
+Location get_gnss_origin_pos(void); 		//获取系统启动时的初始gnss坐标
+Location get_gnss_current_pos(void);		//获取系统当前的gnss坐标
 float get_ned_pos_x(void);//cm
 float get_ned_pos_y(void);//cm
 float get_ned_pos_z(void);//cm
@@ -214,7 +218,6 @@ float get_ned_vel_z(void);//cm/s
 float get_odom_x(void);//cm
 float get_odom_y(void);//cm
 float get_odom_z(void);//cm
-
 float get_pos_x(void);//cm
 float get_pos_y(void);//cm
 float get_pos_z(void);//cm
@@ -252,6 +255,8 @@ bool mode_poshold_init(void);
 void mode_poshold(void);
 bool mode_mecanum_init(void);
 void mode_mecanum(void);
+bool mode_perch_init(void);
+void mode_perch(void);
 
 // Documentation of GLobals:
 typedef union {
@@ -331,10 +336,11 @@ typedef enum {
 	STATE_FLYING_VIRTUAL,
 	STATE_LANDED,
 	STATE_STOP,
-	STATE_CLIMB,
+	STATE_CLIMB, //以上全部为飞行模式的子模式
 	STATE_DRIVE
 }ROBOT_STATE;
 extern ROBOT_STATE robot_state;
+extern ROBOT_STATE robot_state_desired;
 
 typedef enum {
 	MODE_AIR=0,
@@ -505,7 +511,6 @@ typedef struct{
 		Vector3f value;
 	}accel_offdiagonals;
 
-
 	// @DisplayName: mag_offsets
 	// @Units: mGuass
 	// @Range: 0 950
@@ -532,6 +537,16 @@ typedef struct{
 				1900	//ch4_max
 		};
 	}channel_range;
+
+	// @DisplayName: auto land speed
+	// @Description: vertical descending velocity of the mav in cm/s
+	// @Units: cm/s
+	// @Range: 5 500
+	struct auto_land_speed{
+		uint16_t num=16;
+		dataflash_type type=FLOAT;
+		float value=AUTO_LAND_SPEED;
+	}auto_land_speed;
 
 	struct angle_roll_p{
 		uint16_t num=17;

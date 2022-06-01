@@ -186,8 +186,6 @@ void Error_Handler(void);
 #define SDIO_D3_GPIO_Port GPIOC
 #define SDIO_CK_Pin GPIO_PIN_12
 #define SDIO_CK_GPIO_Port GPIOC
-#define FMU_GPIO8_Pin GPIO_PIN_0
-#define FMU_GPIO8_GPIO_Port GPIOD
 #define FMU_LED7_Pin GPIO_PIN_1
 #define FMU_LED7_GPIO_Port GPIOD
 #define SDIO_CMD_Pin GPIO_PIN_2
@@ -210,8 +208,8 @@ void Error_Handler(void);
 #define FMU_LED6_GPIO_Port GPIOB
 #define FMU_LED5_Pin GPIO_PIN_7
 #define FMU_LED5_GPIO_Port GPIOB
-#define SBUS_OUT_EN_Pin GPIO_PIN_8
-#define SBUS_OUT_EN_GPIO_Port GPIOB
+#define FMU_GPIO8_Pin GPIO_PIN_8
+#define FMU_GPIO8_GPIO_Port GPIOB
 #define PPM_INPUT_Pin GPIO_PIN_9
 #define PPM_INPUT_GPIO_Port GPIOB
 #define UART8_RX_Pin GPIO_PIN_0
