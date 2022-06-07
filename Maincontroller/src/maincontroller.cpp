@@ -285,7 +285,7 @@ typedef enum{
 static TFmini_state tfmini_state=TFMINI_IDLE;
 static uint8_t chk_cal = 0, data_num=0;
 static uint8_t tfmini_data[6];
-static Vector3f tfmini_offset=Vector3f(0.0f,-9.0f, 0.0f);//cm 	X4:8,-8,0; X8:0,-9,0
+static Vector3f tfmini_offset=Vector3f(0.0f,-9.0f, 0.0f);//激光测距仪相对于机体中心的坐标,单位:cm (机头方向为x轴正方向, 机体右侧为y轴正方向)
 static uint16_t cordist = 0, strength=0;
 void get_tfmini_data(uint8_t buf)
 {
@@ -335,6 +335,8 @@ static uint32_t time_last_heartbeat[5]={0};
 static uint32_t time_last_attitude=0;
 static mavlink_heartbeat_t heartbeat;
 static mavlink_set_mode_t setmode;
+static mavlink_mission_count_t mission_count;
+static mavlink_mission_item_t mission_item;
 static mavlink_command_long_t cmd;
 static mavlink_rc_channels_override_t rc_channels;
 static mavlink_attitude_t attitude_mav;
@@ -342,10 +344,13 @@ static mavlink_local_position_ned_cov_t local_position_ned_cov;
 static mavlink_set_position_target_local_ned_t set_position_target_local_ned;
 static Vector3f lidar_offset=Vector3f(0.0f,0.0f, -16.0f);//cm
 static uint8_t gcs_channel=255;
+static uint16_t gnss_point_statis=0;
 //发送
 static mavlink_system_t mavlink_system;
-static mavlink_message_t msg_global_attitude_position, msg_command_long, msg_battery_status, msg_rc_channels;
+static mavlink_message_t msg_global_attitude_position, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item;
 static mavlink_global_vision_position_estimate_t global_attitude_position;
+static mavlink_mission_count_t mission_count_send;
+static mavlink_mission_item_t mission_item_send;
 static mavlink_command_long_t command_long;
 static mavlink_battery_status_t battery_status;
 static mavlink_rc_channels_t rc_channels_t;
@@ -375,6 +380,33 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 				dataflash->set_param_uint8(param->robot_type.num, param->robot_type.value);
 				dataflash->set_param_uint8(param->motor_type.num, param->motor_type.value);
 				motors_init();
+				break;
+			case MAVLINK_MSG_ID_MISSION_COUNT:
+				mavlink_msg_mission_count_decode(msg_received, &mission_count);
+				send_mavlink_mission_ack(chan, MAV_MISSION_ACCEPTED);
+				break;
+			case MAVLINK_MSG_ID_MISSION_ITEM:
+				mavlink_msg_mission_item_decode(msg_received, &mission_item);
+				gnss_point_statis++;//统计收到的航点数
+				//seq表示当前航点序号,x:lat,y:lon,z:alt
+				sdlog->gnss_point[mission_item.seq]=Vector3f(mission_item.x,mission_item.y,mission_item.z);
+				send_mavlink_mission_item_reached(chan, mission_item.seq);
+				if(mission_item.seq==mission_item.command){//最后一个点接收完要把航点写入内存卡
+					if(gnss_point_statis==mission_count.count){//如果统计航点数=航点总数，表示全部航点已被接收
+						//航点总数
+						sdlog->gnss_point_num=mission_count.count;
+						sdlog->Logger_Write_Gnss();
+					}
+					gnss_point_statis=0;
+				}
+				break;
+			case MAVLINK_MSG_ID_MISSION_REQUEST:
+				//地面站请求航点总数
+				send_mavlink_mission_count(chan);
+				break;
+			case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
+				//地面站请求航点列表
+				send_mavlink_mission_list(chan);
 				break;
 			case MAVLINK_MSG_ID_COMMAND_LONG:
 				mavlink_msg_command_long_decode(msg_received, &cmd);
@@ -972,6 +1004,39 @@ void send_mavlink_heartbeat_data(void){
 	}
 }
 
+void send_mavlink_mission_ack(mavlink_channel_t chan, MAV_MISSION_RESULT result){
+	mavlink_message_t msg_mission_ack;
+	mavlink_mission_ack_t mission_ack;
+	mission_ack.type=result;
+	mavlink_msg_mission_ack_encode(mavlink_system.sysid, mavlink_system.compid, &msg_mission_ack, &mission_ack);
+	mavlink_send_buffer(chan, &msg_mission_ack);
+}
+
+void send_mavlink_mission_item_reached(mavlink_channel_t chan, uint16_t seq){
+	mavlink_message_t msg_mission_item_reached;
+	mavlink_mission_item_reached_t mission_item_reached;
+	mission_item_reached.seq=seq;
+	mavlink_msg_mission_item_reached_encode(mavlink_system.sysid, mavlink_system.compid, &msg_mission_item_reached, &mission_item_reached);
+	mavlink_send_buffer(chan, &msg_mission_item_reached);
+}
+
+void send_mavlink_mission_count(mavlink_channel_t chan){
+	mission_count_send.count=sdlog->gnss_point_num;
+	mavlink_msg_mission_count_encode(mavlink_system.sysid, mavlink_system.compid, &msg_mission_count, &mission_count_send);
+	mavlink_send_buffer(chan, &msg_mission_count);
+}
+
+void send_mavlink_mission_list(mavlink_channel_t chan){
+	for(uint16_t i=0;i<sdlog->gnss_point_num;i++){
+		mission_item_send.seq=i;
+		mission_item_send.x=sdlog->gnss_point[i].x;
+		mission_item_send.y=sdlog->gnss_point[i].y;
+		mission_item_send.z=sdlog->gnss_point[i].z;
+		mavlink_msg_mission_item_encode(mavlink_system.sysid, mavlink_system.compid, &msg_mission_item, &mission_item_send);
+		mavlink_send_buffer(chan, &msg_mission_item);
+	}
+}
+
 void send_mavlink_commond_ack(mavlink_channel_t chan, MAV_CMD mav_cmd, MAV_CMD_ACK result){
 	mavlink_message_t msg_command_ack;
 	mavlink_command_ack_t command_ack;
@@ -1325,6 +1390,7 @@ void pos_init(void){
 			param->vel_xy_pid.value_d, param->vel_xy_pid.value_imax, param->vel_xy_pid.value_filt_hz, param->vel_xy_pid.value_filt_d_hz, _dt);
 	pos_control->set_dt(_dt);
 	pos_control->init_xy_controller(true);
+	sdlog->Logger_Read_Gnss();
 }
 
 bool uwb_init(void){
@@ -2349,15 +2415,15 @@ static void update_land_detector(void)
         // check that vertical speed is within 1m/s of zero
         bool descent_rate_low = fabsf(get_vel_z()) < 100;
 
-        // TODO : if we have a healthy rangefinder only allow landing detection below 2 meters
-//        bool rangefinder_check = (!rangefinder_alt_ok() || rangefinder_state.alt_cm_filt.get() < LAND_RANGEFINDER_MIN_ALT_CM);
+        // if we have a healthy rangefinder only allow landing detection below 2 meters
+        bool rangefinder_check = (!rangefinder_state.alt_healthy || rangefinder_state.alt_cm < LAND_RANGEFINDER_MIN_ALT_CM);
 
-        if (motor_at_lower_limit && descent_rate_low) {
+        if (motor_at_lower_limit && descent_rate_low && rangefinder_check) {
             // landed criteria met - increment the counter and check if we've triggered
             if( land_detector_count < ((float)LAND_DETECTOR_TRIGGER_SEC)/0.01) {
                 land_detector_count++;
             } else {
-                set_land_complete(true);
+            	disarm_motors();
             }
         } else {
             // we've sensed movement up or down so reset land_detector
@@ -2680,6 +2746,7 @@ void debug(void){
 //	usb_printf("motor:%d|%d|%d|%d\n",pwm_channel.motor[0], motors->get_armed(), get_soft_armed(), motors->get_interlock());
 //	usb_printf("%d\n",robot_sub_mode);
 //  usb_printf("vib_value:%f, vib_angle:%f\n", get_vib_value(), get_vib_angle_z());
+//	usb_printf("point:%d,%f,%f,%f\n",sdlog->gnss_point_num,sdlog->gnss_point[0].x,sdlog->gnss_point[0].y,sdlog->gnss_point[0].z);
 //	Servo_Set_Value(2,1500);
 //	Servo_Set_Value(3,1500);
 }

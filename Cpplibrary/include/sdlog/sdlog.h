@@ -11,6 +11,7 @@
 
 #include "common.h"
 
+#define GNSS_POINT_MAX 1000
 class SDLog{
 private:
 	typedef enum{
@@ -34,7 +35,6 @@ private:
 	uint8_t buffer_max=128;
 	UINT len;
 	char log_buffer[128];
-	Vector3f gnss_point[100];
 	FRESULT Open_Log_File(void);
 	FRESULT Write_Gnss_File(void);
 	FRESULT Read_Gnss_File(void);
@@ -54,11 +54,13 @@ public:
 	}Logger_Status;
 	Logger_Status m_Logger_Status;
 	uint16_t gnss_point_num=0;
+	Vector3f gnss_point[GNSS_POINT_MAX];
 	void Logger_Update(void);
 	void Logger_Enable(void);
 	void Logger_Disable(void);
 	void Logger_Write(const char* s, ...);
-	void Logger_Set_Gnss_Point(uint16_t num, float lat, float lon, float alt);
+	void Logger_Write_Gnss(void);
+	void Logger_Read_Gnss(void);
 };
 
 #endif /* __SDLOG_H */

@@ -37,6 +37,10 @@ extern DataFlash *dataflash;
 extern SDLog *sdlog;
 
 const float _dt=0.0025;
+void send_mavlink_mission_ack(mavlink_channel_t chan, MAV_MISSION_RESULT result);
+void send_mavlink_mission_item_reached(mavlink_channel_t chan, uint16_t seq);
+void send_mavlink_mission_count(mavlink_channel_t chan);
+void send_mavlink_mission_list(mavlink_channel_t chan);
 void send_mavlink_commond_ack(mavlink_channel_t chan, MAV_CMD mav_cmd, MAV_CMD_ACK result);
 float get_non_takeoff_throttle(void);
 void zero_throttle_and_relax_ac(void);

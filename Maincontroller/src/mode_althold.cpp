@@ -9,7 +9,7 @@
 static float target_yaw=0.0f;
 
 bool mode_althold_init(void){
-	if(motors->get_armed()||motors->get_interlock()){//电机未锁定,禁止切换至该模式
+	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
 		return false;
 	}
@@ -108,7 +108,9 @@ void mode_althold(void){
 		} else {
 			motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 		}
-
+		if(robot_state_desired==STATE_DRIVE||robot_state_desired==STATE_LANDED){
+			disarm_motors();
+		}
 		attitude->reset_rate_controller_I_terms();
 		attitude->set_yaw_target_to_current_heading();
 		target_yaw=ahrs_yaw_deg();
