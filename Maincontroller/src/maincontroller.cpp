@@ -85,7 +85,7 @@ AHRS *ahrs=new AHRS(_dt);
 EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 0.000016, 0.000016);
 EKF_Rangefinder *ekf_rangefinder=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
 EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
-EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 1.0, 1.0, 1.0, 1.0, 0.0000001, 0.001, 0.0000001, 0.001);
+EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 0.0016, 0.0016, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
 Motors *motors=new Motors(1/_dt);
 Attitude_Multi *attitude=new Attitude_Multi(*motors, gyro_filt, _dt);
 PosControl *pos_control=new PosControl(*motors, *attitude);
@@ -2385,8 +2385,7 @@ static void update_land_detector(void)
 {
 	ahrs->check_vibration();
 	//******************落地前********************
-	float deadband_bottom = get_throttle_mid() - param->throttle_midzone.value;
-	if((get_channel_throttle()<deadband_bottom)&&(get_vib_value()>param->vib_land.value)&&(motors->get_throttle()<motors->get_throttle_hover())&&(!motors->limit.throttle_lower)){//TODO:降落时防止弹起来
+	if((pos_control->get_desired_velocity().z<0)&&(get_vib_value()>param->vib_land.value)&&(motors->get_throttle()<motors->get_throttle_hover())&&(!motors->limit.throttle_lower)){//TODO:降落时防止弹起来
 		disarm_motors();
 	}
 	//******************落地后ls*********************
@@ -2402,11 +2401,15 @@ static void update_land_detector(void)
     if (!motors->get_armed()) {
         // if disarmed, always landed.
         set_land_complete(true);
+        // we've landed so reset land_detector
+        land_detector_count = 0;
     } else if (ap->land_complete) {
         // if throttle output is high then clear landing flag
         if (motors->get_throttle() > get_non_takeoff_throttle()) {
             set_land_complete(false);
         }
+        // we've landed so reset land_detector
+        land_detector_count = 0;
     } else {
 
         // check that the average throttle output is near minimum (less than 12.5% hover throttle)

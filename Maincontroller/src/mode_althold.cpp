@@ -37,7 +37,6 @@ void mode_althold(void){
 
 	// get pilot's desired yaw rate
 	float target_yaw_rate = get_pilot_desired_yaw_rate(get_channel_yaw_angle());
-//	usb_printf("y:%f\n",target_yaw_rate);
 
 	// get pilot desired climb rate
 	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());
@@ -87,7 +86,7 @@ void mode_althold(void){
 			set_throttle_takeoff();
 			set_thr_force_decrease(false);//起飞时禁止限制油门
 		}
-//		usb_printf("target_climb_rate:%f\n",target_climb_rate);
+
 		// get take-off adjusted pilot and takeoff climb rates
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 

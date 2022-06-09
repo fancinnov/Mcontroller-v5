@@ -30,7 +30,7 @@ static float theta=0.0f;
 void mode_autonav(void){
 	AltHoldModeState althold_state;
 	float takeoff_climb_rate = 0.0f;
-
+	ch7=get_channel_7();
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
@@ -100,7 +100,6 @@ void mode_autonav(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		ch7=get_channel_7();
 		if(ch7>=0.7&&ch7<1.0){//手动姿态
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
@@ -163,9 +162,8 @@ void mode_autonav(void){
 		}
 
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
-		// call attitude controller
 
-		ch7=get_channel_7();
+		// call attitude controller
 		if(ch7>=0.7&&ch7<1.0){//手动姿态
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);

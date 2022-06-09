@@ -55,7 +55,7 @@ void mode_update(void){
 		if(robot_main_mode==MODE_UGV){
 			robot_state_desired=STATE_FLYING;//从UGV切换过来时，自动起飞
 		}else{
-			robot_state_desired=STATE_STOP;//为保证安全,其它模式切换过来进入电机停转模式
+			robot_state_desired=STATE_NONE;//清空状态标志
 		}
 	}
 	switch(robot_state){
