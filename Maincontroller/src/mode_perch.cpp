@@ -7,7 +7,7 @@
 #include "maincontroller.h"
 
 static float target_yaw=0.0f;
-
+static float desire_pitch_rad=0.0f;
 bool mode_perch_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -42,6 +42,12 @@ void mode_perch(void){
 	// get pilot desired climb rate
 	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());
 	target_climb_rate = constrain_float(target_climb_rate, -param->pilot_speed_dn.value, param->pilot_speed_up.value);
+
+	//hover angle
+	Matrix3f rotation_matrix(cosf(desire_pitch_rad),  0,  sinf(desire_pitch_rad),
+									 	 	 	  0,  1,     0,
+							-sinf(desire_pitch_rad),  0,  cosf(desire_pitch_rad));
+	attitude->set_rotation_target_to_body(get_dcm_matrix_correct()*rotation_matrix);
 
 	// Alt Hold State Machine Determination
 	if (!motors->get_armed()) {
@@ -126,6 +132,7 @@ void mode_perch(void){
 	case AltHold_Flying:
 		robot_state=STATE_FLYING;
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
+
 		// call attitude controller
 		target_yaw+=target_yaw_rate*_dt;
 		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);

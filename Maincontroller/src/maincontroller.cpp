@@ -56,6 +56,7 @@ static float accel_ef_filt_hz=10;//HZ
 static float uwb_pos_filt_hz=5;//HZ
 static float odom_pos_filt_hz=5;//HZ
 static float odom_vel_filt_hz=5;//HZ
+static float rangefinder_filt_hz=5;//HZ
 static float pitch_rad_raw=0 , roll_rad_raw=0 , yaw_rad_raw=0;
 static float pitch_rad=0 , roll_rad=0 , yaw_rad=0;
 static float pitch_deg=0 , roll_deg=0 , yaw_deg=0;
@@ -121,6 +122,14 @@ const Vector3f& get_accel_ef(void){								//地球坐标系下的三轴加速�
 
 const Vector3f& get_gyro_ef(void){								//地球坐标系下的三轴角速度
 	return gyro_ef;
+}
+
+const Matrix3f& get_dcm_matrix(void){
+	return dcm_matrix;
+}
+
+const Matrix3f& get_dcm_matrix_correct(void){
+	return dcm_matrix_correct;
 }
 
 //return the vib_value
@@ -314,13 +323,18 @@ void get_tfmini_data(uint8_t buf)
 				cordist=tfmini_data[0]|(tfmini_data[1]<<8);//cm
 				strength=tfmini_data[2]|(tfmini_data[3]<<8);
 				if(cordist>3&&cordist<=1200){
-					rangefinder_state.alt_healthy=true;
 					Vector3f pos_offset=dcm_matrix*tfmini_offset;
-					rangefinder_state.alt_cm=(float)cordist*MAX(0.707f, dcm_matrix.c.z)+pos_offset.z;
+					if(!rangefinder_state.alt_healthy){
+						rangefinder_state.alt_cm_filt.reset((float)cordist);//重置滤波器
+					}
+					rangefinder_state.alt_cm=rangefinder_state.alt_cm_filt.apply((float)cordist);
+					rangefinder_state.alt_cm=rangefinder_state.alt_cm*MAX(0.707f, dcm_matrix.c.z)+pos_offset.z;
 					rangefinder_state.last_healthy_ms=HAL_GetTick();
 					get_rangefinder_data=true;
+					rangefinder_state.alt_healthy=true;
 				}else{
 					rangefinder_state.alt_healthy=false;
+					rangefinder_state.alt_cm_filt.set_cutoff_frequency(100, rangefinder_filt_hz);//tfmini默认频率100hz
 				}
 				tfmini_state=TFMINI_IDLE;
 			}else{

@@ -198,6 +198,8 @@ const Vector3f& get_mag_correct(void);		//修正后的三轴磁场强度
 const Vector3f& get_accel_filt(void);		//滤波后的三轴机体加速度
 const Vector3f& get_gyro_filt(void);		//滤波后的三轴机体角速度
 const Vector3f& get_mag_filt(void);			//滤波后的三轴磁场强度
+const Matrix3f& get_dcm_matrix(void);		//DCM旋转矩阵
+const Matrix3f& get_dcm_matrix_correct(void);
 float get_yaw_map(void);
 
 float get_baroalt_filt(void);				//滤波后的气压高度
