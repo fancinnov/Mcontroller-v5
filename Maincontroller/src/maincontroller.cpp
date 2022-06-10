@@ -334,7 +334,6 @@ void get_tfmini_data(uint8_t buf)
 					rangefinder_state.alt_healthy=true;
 				}else{
 					rangefinder_state.alt_healthy=false;
-					rangefinder_state.alt_cm_filt.set_cutoff_frequency(100, rangefinder_filt_hz);//tfmini默认频率100hz
 				}
 				tfmini_state=TFMINI_IDLE;
 			}else{
@@ -1405,6 +1404,7 @@ void pos_init(void){
 	pos_control->set_dt(_dt);
 	pos_control->init_xy_controller(true);
 	sdlog->Logger_Read_Gnss();
+	rangefinder_state.alt_cm_filt.set_cutoff_frequency(100, rangefinder_filt_hz);//tfmini默认频率100hz
 }
 
 bool uwb_init(void){
