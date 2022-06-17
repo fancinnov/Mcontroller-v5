@@ -27,8 +27,12 @@ extern "C" {
 	typedef enum {
 		GPS = 0,    ///< normal GPS output
 		RTCM        ///< request RTCM output. This is used for (fixed position) base stations
-	}
-	OutputMode;
+	}OutputMode;
+
+	typedef enum {
+		UBLOX = 0,    ///< UBLOX模组
+		UM482        ///< UM482模组
+	}GnssType;
 
 	typedef struct
 	{
@@ -66,8 +70,19 @@ extern "C" {
 		float cog_rad;
 		int32_t timestamp_time_relative;
 		uint8_t fix_type;
+		uint8_t heading_status;//0：无效解；4：固定解；5：浮动解；
 		uint8_t vel_ned_valid;
 		uint8_t satellites_used;
+		uint8_t gps_used;
+		uint8_t bds_used;
+		uint8_t glo_used;
+		float baseline_n;//基线
+		float baseline_e;
+		float baseline_u;
+		float heading; //双天线定向, 单位：度
+		float lat_noise;
+		float lon_noise;
+		float alt_noise;
 		uint8_t _padding0[5]; // required for logger
 	}vehicle_gps_position_s;
 
@@ -94,8 +109,7 @@ extern "C" {
 #define SAT_INFO_MAX_SATELLITES 20
 
 	extern vehicle_gps_position_s *gps_position;
-	extern bool gps_healthy;//gps是否正常
-	bool GPS_Init(void);
+	bool GPS_Init(GnssType type);
 	void GPS_Baud_Reset(uint32_t baud);
 	void get_gps_data(uint8_t buf);
 	bool get_gps_state(void);

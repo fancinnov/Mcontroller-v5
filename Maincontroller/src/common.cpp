@@ -141,6 +141,9 @@ void mode_update(void){
 	case MODE_AUTONAV:
 		mode_autonav();
 		break;
+	case MODE_PERCH:
+		mode_perch();
+		break;
 	case MODE_MECANUM_A:
 		mode_mecanum();
 		break;

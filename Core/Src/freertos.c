@@ -548,7 +548,7 @@ void GPSTask(void *argument)
 #if USE_GPS==0
 	osThreadTerminate(gpsTaskHandle);
 #endif
-	if(!GPS_Init()){// GPS_Init() task will block 10s
+	if(!GPS_Init(UBLOX)){// GPS_Init() task will block 10s
 		osThreadTerminate(gpsTaskHandle);
 	}
     uint8_t state_flag=0;

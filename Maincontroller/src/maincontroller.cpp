@@ -360,8 +360,9 @@ static uint8_t gcs_channel=255;
 static uint16_t gnss_point_statis=0;
 //发送
 static mavlink_system_t mavlink_system;
-static mavlink_message_t msg_global_attitude_position, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item;
+static mavlink_message_t msg_global_attitude_position, msg_global_position_int, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item;
 static mavlink_global_vision_position_estimate_t global_attitude_position;
+static mavlink_global_position_int_t global_position_int;
 static mavlink_mission_count_t mission_count_send;
 static mavlink_mission_item_t mission_item_send;
 static mavlink_command_long_t command_long;
@@ -961,10 +962,10 @@ void send_mavlink_heartbeat_data(void){
 	mavlink_heartbeat_t heartbeat_send;
 	mavlink_system.sysid=1;
 	mavlink_system.compid=MAV_COMP_ID_AUTOPILOT1;
-	heartbeat_send.type=MAV_TYPE_OCTOROTOR;
-	heartbeat_send.autopilot=MAV_AUTOPILOT_GENERIC;
-	heartbeat_send.base_mode=MAV_MODE_FLAG_STABILIZE_ENABLED|MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
-	heartbeat_send.custom_mode=(param->robot_type.value<<24)|(param->motor_type.value<<16);
+	heartbeat_send.type=(param->robot_type.value<<24)|(param->motor_type.value<<16);
+	heartbeat_send.autopilot=robot_main_mode;//主模式
+	heartbeat_send.custom_mode=robot_sub_mode;//子模式
+	heartbeat_send.base_mode=0;
 	if(get_soft_armed()){
 		heartbeat_send.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
 	}
@@ -1060,6 +1061,7 @@ void send_mavlink_commond_ack(mavlink_channel_t chan, MAV_CMD mav_cmd, MAV_CMD_A
 }
 
 static uint8_t accel_cali_num=0;
+static uint32_t takeoff_time=0;
 void send_mavlink_data(mavlink_channel_t chan)
 {
 	if((HAL_GetTick()-time_last_heartbeat[(uint8_t)chan])>5000){
@@ -1073,10 +1075,29 @@ void send_mavlink_data(mavlink_channel_t chan)
 	global_attitude_position.pitch=ahrs_pitch_rad();
 	global_attitude_position.roll=ahrs_roll_rad();
 	global_attitude_position.yaw=ahrs_yaw_rad();
+	global_attitude_position.x=get_pos_x();
+	global_attitude_position.y=get_pos_y();
 	global_attitude_position.z=get_pos_z();
 	global_attitude_position.usec=time;
 	mavlink_msg_global_vision_position_estimate_encode(mavlink_system.sysid, mavlink_system.compid, &msg_global_attitude_position, &global_attitude_position);
 	mavlink_send_buffer(chan, &msg_global_attitude_position);
+
+	//经纬高+速度
+	global_position_int.lat=gps_position->lat;//deg*1e7
+	global_position_int.lon=gps_position->lon;//deg*1e7
+	global_position_int.alt=gps_position->alt;//mm
+	global_position_int.relative_alt=(int32_t)(rangefinder_state.alt_cm*10);//对地高度 mm
+	global_position_int.hdg=gps_position->satellites_used;//卫星数
+	global_position_int.vx=get_vel_x(); //速度cm/s
+	global_position_int.vy=get_vel_y(); //速度cm/s
+	global_position_int.vz=get_vel_z(); //速度cm/s
+	if(takeoff_time>0){
+		global_position_int.time_boot_ms=time-takeoff_time;//起飞时间 ms
+	}else{
+		global_position_int.time_boot_ms=0;
+	}
+	mavlink_msg_global_position_int_encode(mavlink_system.sysid, mavlink_system.compid, &msg_global_position_int, &global_position_int);
+	mavlink_send_buffer(chan, &msg_global_position_int);
 
 	//加速度计校准
 	if(!accel_cal_succeed){
@@ -2322,7 +2343,7 @@ bool arm_motors(void)
 
     // flag exiting this function
     in_arm_motors = false;
-
+    takeoff_time=HAL_GetTick();
     Buzzer_set_ring_type(BUZZER_ARMED);
     FMU_LED3_Control(true);
 
@@ -2356,7 +2377,7 @@ void disarm_motors(void)
 
     //停止日志记录
     sdlog->Logger_Disable();
-
+    takeoff_time=0;
     Buzzer_set_ring_type(BUZZER_DISARM);
     FMU_LED3_Control(false);
 }
@@ -2647,8 +2668,8 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_RATE_CONTROL
 			"roll_p", "roll_i", "roll_d", "pitch_p", "pitch_i", "pitch_d", "yaw_p", "yaw_i", "yaw_d");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_MOTOR_CONTROL
-			"roll_t", "pitch_t", "p_out", "r_out", "y_out", "t_out", "t_hover");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_MOTOR_CONTROL
+			"roll_t", "pitch_t", "yaw_t", "p_out", "r_out", "y_out", "t_out", "t_hover");
 	osDelay(1);
 	//add other loggers
 }
@@ -2694,8 +2715,9 @@ void Logger_Data_Callback(void){
 			attitude->get_rate_roll_pid().get_p(), attitude->get_rate_roll_pid().get_integrator(), attitude->get_rate_roll_pid().get_d(), attitude->get_rate_pitch_pid().get_p(), attitude->get_rate_pitch_pid().get_integrator(), attitude->get_rate_pitch_pid().get_d(),
 			attitude->get_rate_yaw_pid().get_p(), attitude->get_rate_yaw_pid().get_integrator(), attitude->get_rate_yaw_pid().get_d());
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_MOTOR_CONTROL
-			pos_control->get_roll(), pos_control->get_pitch(), motors->get_pitch(), motors->get_roll(), motors->get_yaw(), motors->get_throttle(), motors->get_throttle_hover());
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_MOTOR_CONTROL
+			attitude->get_att_target_euler_d().x, attitude->get_att_target_euler_d().y, attitude->get_att_target_euler_d().z,
+			motors->get_pitch(), motors->get_roll(), motors->get_yaw(), motors->get_throttle(), motors->get_throttle_hover());
 	osDelay(1);
 	//add other loggers
 }
@@ -2708,6 +2730,12 @@ void Logger_Update(void){
  * *******************code for test and debug*********************
  *****************************************************************/
 void debug(void){
+//	if(HAL_GetTick()>5000&&HAL_GetTick()<5011){
+//		sdlog->Logger_Enable();
+//	}
+//	if(HAL_GetTick()>10000&&HAL_GetTick()<10011){
+//		sdlog->Logger_Disable();
+//	}
 //	usb_printf("l:%d\n",get_comm3_available());
 //	usb_printf("ux:%f|uy:%f|uz:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y,  uwb->uwb_position.z, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
 //	usb_printf("gps_position lat:%lf ,lon:%lf ,alt:%lf \r\n" , (double)gps_position->lat/10000000.0,(double)gps_position->lon/10000000.0,(double)gps_position->alt/1000000.0);
@@ -2740,7 +2768,7 @@ void debug(void){
 //	usb_printf("ax:%f, ay:%f, az:%f, accelx:%f,accely:%f,accelz:%f\n ",dcm_matrix.a.x, dcm_matrix.a.y, dcm_matrix.a.z, accel_filt.x,accel_filt.y,accel_filt.z);
 //	usb_printf("ax:%f,ay:%f,az:%f\n",mpu9250_data.accf.x,mpu9250_data.accf.y,mpu9250_data.accf.z);
 //	usb_printf("%f,%f,%f\n",mpu9250_data.gyrof.x, mpu9250_data.gyrof.y, mpu9250_data.gyrof.z);
-//	usb_printf("%f,%f,%f\n",qmc5883_data.magf.x, qmc5883_data.magf.y, qmc5883_data.magf.z);
+//	usb_printf("%f,%f,%f\n",attitude->get_att_target_euler_d().x, attitude->get_att_target_euler_d().y, attitude->get_att_target_euler_d().z);
 //	usb_printf("hover:%f|%f\n",param->t_hover_update_min.value,param->t_hover_update_max.value);
 //	usb_printf("m:%d|%d\n",param.motor_type.value, param.robot_type.value);
 //	usb_printf("pos_x:%f|%f,pos_y:%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());

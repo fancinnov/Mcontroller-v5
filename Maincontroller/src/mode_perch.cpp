@@ -6,6 +6,8 @@
  */
 #include "maincontroller.h"
 
+#define SERVO_MID 1500
+#define SERVO_PI  800
 static float target_yaw=0.0f;
 static float desire_pitch_rad=0.0f;
 bool mode_perch_init(void){
@@ -20,7 +22,7 @@ bool mode_perch_init(void){
 	}
 	set_manual_throttle(false);//设置为自动油门
 	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
-	usb_printf("switch mode althold!\n");
+	usb_printf("switch mode perch!\n");
 	return true;
 }
 
@@ -37,13 +39,14 @@ void mode_perch(void){
 
 	// get pilot's desired yaw rate
 	float target_yaw_rate = get_pilot_desired_yaw_rate(get_channel_yaw_angle());
-//	usb_printf("y:%f\n",target_yaw_rate);
 
 	// get pilot desired climb rate
 	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());
 	target_climb_rate = constrain_float(target_climb_rate, -param->pilot_speed_dn.value, param->pilot_speed_up.value);
 
-	//hover angle
+	//desire hover angle
+	Servo_Set_Value(2,SERVO_MID+desire_pitch_rad/M_PI*SERVO_PI);
+	Servo_Set_Value(3,SERVO_MID-desire_pitch_rad/M_PI*SERVO_PI);
 	Matrix3f rotation_matrix(cosf(desire_pitch_rad),  0,  sinf(desire_pitch_rad),
 									 	 	 	  0,  1,     0,
 							-sinf(desire_pitch_rad),  0,  cosf(desire_pitch_rad));
@@ -70,8 +73,6 @@ void mode_perch(void){
 				arm_motors();
 			}
 		}
-		Servo_Set_Value(2,1500);
-		Servo_Set_Value(3,1500);
 		motors->set_desired_spool_state(Motors::DESIRED_SHUT_DOWN);
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		attitude->reset_rate_controller_I_terms();
@@ -110,8 +111,6 @@ void mode_perch(void){
 
 	case AltHold_Landed:
 		robot_state=STATE_LANDED;
-		Servo_Set_Value(2,1500);
-		Servo_Set_Value(3,1500);
 		// set motors to spin-when-armed if throttle below deadzone, otherwise full range (but motors will only spin at min throttle)
 		if (target_climb_rate < 0.0f) {
 			motors->set_desired_spool_state(Motors::DESIRED_SPIN_WHEN_ARMED);

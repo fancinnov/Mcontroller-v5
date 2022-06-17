@@ -6,7 +6,7 @@
  */
 #include "maincontroller.h"
 
-static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f;
+static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f,vx_target_bf=0.0f,vy_target_bf=0.0f,vel_lat_cms=0.0f,vel_lon_cms=0.0f;
 
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
@@ -69,6 +69,9 @@ void mode_poshold(void){
 		attitude->reset_rate_controller_I_terms();
 		attitude->set_yaw_target_to_current_heading();
 		target_yaw=ahrs_yaw_deg();
+		x_target=get_ned_pos_x();
+		y_target=get_ned_pos_y();
+		pos_control->set_xy_target(x_target, y_target);
 		pos_control->relax_alt_hold_controllers(0.0f);   // forces throttle output to go to zero
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
 		break;
@@ -92,11 +95,22 @@ void mode_poshold(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
-		target_yaw=ahrs_yaw_deg();
-		x_target=get_ned_pos_x();
-		y_target=get_ned_pos_y();
-		pos_control->set_xy_target(x_target, y_target);
+		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
+			target_yaw+=target_yaw_rate*_dt;
+			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			x_target=get_ned_pos_x();
+			y_target=get_ned_pos_y();
+			pos_control->set_xy_target(x_target, y_target);
+		}else{//定位模式(下挡位)
+			target_yaw+=target_yaw_rate*_dt;
+			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
+			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
+			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
+			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
+			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
+			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+		}
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 		pos_control->add_takeoff_climb_rate(takeoff_climb_rate, _dt);
@@ -130,27 +144,21 @@ void mode_poshold(void){
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
 		// call attitude controller
-		if(ch7>=0.7&&ch7<1.0){//手动姿态(上挡位)
+		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 			x_target=get_ned_pos_x();
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
-		}else if(ch7>0.3&&ch7<0.7){//手动俯仰滚转,锁定偏航(中挡位)
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
-			x_target=get_ned_pos_x();
-			y_target=get_ned_pos_y();
-			pos_control->set_xy_target(x_target, y_target);
-		}else if(ch7>0.0&&ch7<=0.3){//自动姿态(下挡位)
-			pos_control->set_xy_target(x_target, y_target);
+		}else{//定位模式(下挡位)
+			target_yaw+=target_yaw_rate*_dt;
+			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
+			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
+			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
+			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
+			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
-		}else{
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
-			x_target=get_ned_pos_x();
-			y_target=get_ned_pos_y();
-			pos_control->set_xy_target(x_target, y_target);
 		}
 
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
