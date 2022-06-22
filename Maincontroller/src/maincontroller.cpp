@@ -388,12 +388,16 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 				}else if(setmode.base_mode==MAV_MODE_AUTO_DISARMED){
 					disarm_motors();
 					break;
+				}else if(setmode.base_mode==MAV_MODE_PREFLIGHT){
+					if(get_soft_armed()||motors->get_interlock()||motors->get_armed()){
+						break;
+					}
+					param->robot_type.value=(uint8_t)((setmode.custom_mode>>24)&0xFF);
+					param->motor_type.value=(uint8_t)((setmode.custom_mode>>16)&0xFF);
+					dataflash->set_param_uint8(param->robot_type.num, param->robot_type.value);
+					dataflash->set_param_uint8(param->motor_type.num, param->motor_type.value);
+					motors_init();
 				}
-				param->robot_type.value=(uint8_t)((setmode.custom_mode>>24)&0xFF);
-				param->motor_type.value=(uint8_t)((setmode.custom_mode>>16)&0xFF);
-				dataflash->set_param_uint8(param->robot_type.num, param->robot_type.value);
-				dataflash->set_param_uint8(param->motor_type.num, param->motor_type.value);
-				motors_init();
 				break;
 			case MAVLINK_MSG_ID_MISSION_COUNT:
 				mavlink_msg_mission_count_decode(msg_received, &mission_count);
@@ -2730,12 +2734,6 @@ void Logger_Update(void){
  * *******************code for test and debug*********************
  *****************************************************************/
 void debug(void){
-//	if(HAL_GetTick()>5000&&HAL_GetTick()<5011){
-//		sdlog->Logger_Enable();
-//	}
-//	if(HAL_GetTick()>10000&&HAL_GetTick()<10011){
-//		sdlog->Logger_Disable();
-//	}
 //	usb_printf("l:%d\n",get_comm3_available());
 //	usb_printf("ux:%f|uy:%f|uz:%f|x:%f|y:%f|vx:%f|vy:%f\n", uwb->uwb_position.x, uwb->uwb_position.y,  uwb->uwb_position.z, get_pos_x(), get_pos_y(),get_vel_x(), get_vel_y());
 //	usb_printf("gps_position lat:%lf ,lon:%lf ,alt:%lf \r\n" , (double)gps_position->lat/10000000.0,(double)gps_position->lon/10000000.0,(double)gps_position->alt/1000000.0);
