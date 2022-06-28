@@ -101,8 +101,8 @@ void mode_autonav(void){
 
 		// call attitude controller
 		if(ch7>=0.7&&ch7<1.0){//手动姿态
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		}else if(ch7>0.3&&ch7<0.7){//定点
 			pos_control->set_xy_target(250.0f, -200.0f);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
@@ -112,8 +112,8 @@ void mode_autonav(void){
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		}
 		// call position controller
 		if(jump){//起飞时直接跳起30cm
@@ -165,8 +165,8 @@ void mode_autonav(void){
 
 		// call attitude controller
 		if(ch7>=0.7&&ch7<1.0){//手动姿态
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		}else if(ch7>0.3&&ch7<0.7){//定点
 			theta=0.0f;
 			pos_control->set_xy_target(250.0f, -200.0f);
@@ -178,8 +178,8 @@ void mode_autonav(void){
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{
-			target_yaw+=target_yaw_rate*_dt;
-		    attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		}
 
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms

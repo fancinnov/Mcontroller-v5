@@ -402,10 +402,13 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 			case MAVLINK_MSG_ID_MISSION_COUNT:
 				mavlink_msg_mission_count_decode(msg_received, &mission_count);
 				send_mavlink_mission_ack(chan, MAV_MISSION_ACCEPTED);
+				gnss_point_statis=0;
 				break;
 			case MAVLINK_MSG_ID_MISSION_ITEM:
 				mavlink_msg_mission_item_decode(msg_received, &mission_item);
-				gnss_point_statis++;//统计收到的航点数
+				if(mission_item.seq==(gnss_point_statis+1)){
+					gnss_point_statis++;//统计收到的航点数
+				}
 				//seq表示当前航点序号,x:lat,y:lon,z:alt
 				sdlog->gnss_point[mission_item.seq]=Vector3f(mission_item.x,mission_item.y,mission_item.z);
 				send_mavlink_mission_item_reached(chan, mission_item.seq);
@@ -1487,8 +1490,10 @@ void update_accel_gyro_data(void){
 			ahrs_stage_compass=true;
 		}
 	}else{
-		accel_filt=_accel_filter.apply(accel_correct);
-		gyro_filt=_gyro_filter.apply(gyro_correct);
+		if(accel_correct.length()<50){//过滤奇异值
+			accel_filt=_accel_filter.apply(accel_correct);
+			gyro_filt=_gyro_filter.apply(gyro_correct);
+		}
 	}
 }
 

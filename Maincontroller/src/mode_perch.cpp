@@ -133,8 +133,8 @@ void mode_perch(void){
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
 		// call attitude controller
-		target_yaw+=target_yaw_rate*_dt;
-		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+		target_yaw=ahrs_yaw_deg();
+		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
 			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用
