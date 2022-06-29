@@ -101,8 +101,8 @@ void mode_perch(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
-		target_yaw=ahrs_yaw_deg();
+		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 		pos_control->add_takeoff_climb_rate(takeoff_climb_rate, _dt);

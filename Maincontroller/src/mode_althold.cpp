@@ -6,6 +6,7 @@
  */
 #include "maincontroller.h"
 
+static float target_yaw=0.0f;
 bool mode_althold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -65,6 +66,7 @@ void mode_althold(void){
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		attitude->reset_rate_controller_I_terms();
 		attitude->set_yaw_target_to_current_heading();
+		target_yaw=ahrs_yaw_deg();
 		pos_control->relax_alt_hold_controllers(0.0f);   // forces throttle output to go to zero
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
 		break;
@@ -88,7 +90,8 @@ void mode_althold(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 		pos_control->add_takeoff_climb_rate(takeoff_climb_rate, _dt);
@@ -109,6 +112,7 @@ void mode_althold(void){
 		attitude->reset_rate_controller_I_terms();
 		attitude->set_yaw_target_to_current_heading();
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+		target_yaw=ahrs_yaw_deg();
 		pos_control->relax_alt_hold_controllers(0.0f);   // forces throttle output to go to zero
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
 		break;
@@ -117,6 +121,7 @@ void mode_althold(void){
 		robot_state=STATE_FLYING;
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 		// call attitude controller
+		target_yaw=ahrs_yaw_deg();
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
 			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用

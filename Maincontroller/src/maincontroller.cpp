@@ -406,13 +406,13 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 				break;
 			case MAVLINK_MSG_ID_MISSION_ITEM:
 				mavlink_msg_mission_item_decode(msg_received, &mission_item);
-				if(mission_item.seq==(gnss_point_statis+1)){
+				if(mission_item.seq==gnss_point_statis){
 					gnss_point_statis++;//统计收到的航点数
 				}
 				//seq表示当前航点序号,x:lat,y:lon,z:alt
 				sdlog->gnss_point[mission_item.seq]=Vector3f(mission_item.x,mission_item.y,mission_item.z);
 				send_mavlink_mission_item_reached(chan, mission_item.seq);
-				if(mission_item.seq==mission_item.command){//最后一个点接收完要把航点写入内存卡
+				if(mission_count.count==mission_item.seq+1){//最后一个点接收完要把航点写入内存卡
 					if(gnss_point_statis==mission_count.count){//如果统计航点数=航点总数，表示全部航点已被接收
 						//航点总数
 						sdlog->gnss_point_num=mission_count.count;

@@ -99,20 +99,18 @@ void mode_poshold(void){
 
 		// call attitude controller
 		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
-			target_yaw=ahrs_yaw_deg();
-			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 			x_target=get_ned_pos_x();
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else{//定位模式(下挡位)
-			target_yaw=ahrs_yaw_deg();
 			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
 			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
 			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
@@ -164,18 +162,20 @@ void mode_poshold(void){
 			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 		}else{//巡线模式
 			if(sdlog->gnss_point_num>0){
-				gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
-				gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
-				ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;
-				ned_dis_2d.x=ned_target_pos.x-get_pos_x();
-				ned_dis_2d.y=ned_target_pos.y-get_pos_y();
-				if(ned_dis_2d.length()<100&&target_point<sdlog->gnss_point_num){//距离目标点小于1m认为到达
-					target_point++;
-				}else{
-					if(ned_dis_2d.y>=0){
-						target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+				if(target_point<sdlog->gnss_point_num){
+					gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
+					gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
+					ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
+					ned_dis_2d.x=ned_target_pos.x-get_pos_x();
+					ned_dis_2d.y=ned_target_pos.y-get_pos_y();
+					if(ned_dis_2d.length()<100){//距离目标点小于1m认为到达
+						target_point++;
 					}else{
-						target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+						if(ned_dis_2d.y>=0){
+							target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+						}else{
+							target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+						}
 					}
 				}
 				//TODO:巡线结束后需要执行的策略
