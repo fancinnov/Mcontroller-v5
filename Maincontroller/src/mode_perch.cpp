@@ -7,7 +7,7 @@
 #include "maincontroller.h"
 
 #define SERVO_MID 1500
-#define SERVO_PI  800
+#define SERVO_PI_2  800
 static float target_yaw=0.0f;
 static float desire_pitch_rad=0.0f;
 bool mode_perch_init(void){
@@ -45,11 +45,19 @@ void mode_perch(void){
 	target_climb_rate = constrain_float(target_climb_rate, -param->pilot_speed_dn.value, param->pilot_speed_up.value);
 
 	//desire hover angle
-	Servo_Set_Value(2,SERVO_MID+desire_pitch_rad/M_PI*SERVO_PI);
-	Servo_Set_Value(3,SERVO_MID-desire_pitch_rad/M_PI*SERVO_PI);
-	Matrix3f rotation_matrix(cosf(desire_pitch_rad),  0,  sinf(desire_pitch_rad),
+	float ch7=get_channel_7();
+	if(ch7>=0.7&&ch7<1.0){
+		desire_pitch_rad=20*DEG_TO_RAD;
+	}else if(ch7>=0.3&&ch7<0.7){
+		desire_pitch_rad=10*DEG_TO_RAD;
+	}else{
+		desire_pitch_rad=0;
+	}
+	Servo_Set_Value(2,SERVO_MID+desire_pitch_rad/M_PI_2*SERVO_PI_2);
+	Servo_Set_Value(3,SERVO_MID-desire_pitch_rad/M_PI_2*SERVO_PI_2);
+	Matrix3f rotation_matrix(cosf(desire_pitch_rad),  0,  -sinf(desire_pitch_rad),
 									 	 	 	  0,  1,     0,
-							-sinf(desire_pitch_rad),  0,  cosf(desire_pitch_rad));
+							 sinf(desire_pitch_rad),  0,   cosf(desire_pitch_rad));
 	attitude->set_rotation_target_to_body(get_dcm_matrix_correct()*rotation_matrix);
 
 	// Alt Hold State Machine Determination
@@ -133,8 +141,8 @@ void mode_perch(void){
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
 		// call attitude controller
-		target_yaw=ahrs_yaw_deg();
-		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+		target_yaw+=target_yaw_rate*_dt;
+		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
 			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用

@@ -146,20 +146,20 @@ void mode_poshold(void){
 
 		// call attitude controller
 		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
-			target_yaw=ahrs_yaw_deg();
-			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+			target_yaw+=target_yaw_rate*_dt;
+			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 			x_target=get_ned_pos_x();
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-			target_yaw=ahrs_yaw_deg();
 			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
 			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
 			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+			target_yaw+=target_yaw_rate*_dt;
+			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 		}else{//巡线模式
 			if(sdlog->gnss_point_num>0){
 				if(target_point<sdlog->gnss_point_num){
@@ -183,14 +183,14 @@ void mode_poshold(void){
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{
-				target_yaw=ahrs_yaw_deg();
 				vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
 				vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
 				vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 				vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 				pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-				attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+				target_yaw+=target_yaw_rate*_dt;
+				attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 			}
 		}
 
