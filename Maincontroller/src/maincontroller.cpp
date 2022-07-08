@@ -1399,6 +1399,7 @@ void motors_init(void){
 		break;
 	}
 	motors->setup_motors(frame_class,frame_type,motor_type);
+	motors->set_throttle_hover(constrain_float(motors->get_throttle_hover(), param->t_hover_update_min.value, param->t_hover_update_max.value));
 	// disable output to motors and servos
 	set_rcout_enable(false);
 	FMU_PWM_Set_Output_Disable();
