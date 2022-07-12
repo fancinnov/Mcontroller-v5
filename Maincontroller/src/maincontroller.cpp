@@ -1759,34 +1759,63 @@ void ahrs_update(void){
 	}
 }
 
-static float baro_alt_filt=0,baro_alt_init=0;
+static float baro_alt=0,baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_last_raw,gps_alt_last;
 static uint16_t init_baro=0;
+static bool use_alt_correct=false;
 void update_baro_alt(void){
 	if(init_baro<200){//前200点不要
 		init_baro++;
 		return;
 	}
-	float baro_alt=spl06_data.baro_alt*100.0f;
-	if(isnan(baro_alt) || isinf(baro_alt)){
+	float baro_alt_raw=spl06_data.baro_alt*100.0f;
+	if(isnan(baro_alt_raw) || isinf(baro_alt_raw)){
 		return;
 	}
-	if(fabs(baro_alt)>800000 || is_equal(baro_alt, 0.0f)){
+	if(fabs(baro_alt_raw)>800000 || is_equal(baro_alt_raw, 0.0f)){
 		return;
 	}
 	if(init_baro<300){
-		baro_alt_init+=baro_alt/100;
+		baro_alt_init+=baro_alt_raw/100;
 		init_baro++;
 		return;
 	}
 	if(!initial_baro){
 		_baro_alt_filter.set_cutoff_frequency(100, baro_filt_hz);
+		baro_alt_last=0;
+		baro_alt_last_raw=0;
 		initial_baro=true;
 	}else{
-		baro_alt-=baro_alt_init;
-		if(baro_alt-baro_alt_filt>200){//过滤掉奇异值
+		baro_alt_raw-=baro_alt_init;
+		if(get_gps_state()){
+			if(is_equal(gps_alt_last, 0.0f)){
+				gps_alt_last=ned_current_pos.z;
+			}else{
+				if(is_equal(ned_current_pos.z, gps_alt_last)){
+					use_alt_correct=false;
+				}else{
+					use_alt_correct=true;
+				}
+			}
+			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
+			float vel=constrain_float(vel_2d.length(), 0.0f, 8.0f);//最大速度限制为8m/s
+			Baro_set_press_offset(vel);
+		}else{
+			//TODO:add other sensor correct
+			Baro_set_press_offset(0.0f);
+			use_alt_correct=false;
+		}
+		if(baro_alt_raw-baro_alt_filt>200||baro_alt_raw-baro_alt_filt<-200){//过滤掉奇异值
 			return;
 		}
+		if(use_alt_correct){
+			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*0.95+(ned_current_pos.z-gps_alt_last)*0.05;
+			gps_alt_last=ned_current_pos.z;
+		}else{
+			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw);
+		}
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt);
+		baro_alt_last=baro_alt;
+		baro_alt_last_raw=baro_alt_raw;
 		get_baro_alt_filt=true;
 	}
 }
@@ -1887,7 +1916,7 @@ void ekf_odom_xy(void){
 }
 
 void ekf_gnss_xy(void){
-	if(!ahrs->is_initialed()||(!ahrs_healthy)){
+	if(!ahrs->is_initialed()||(!ahrs_healthy)||!get_gps_state()){
 		return;
 	}
 	ekf_gnss->update(get_gnss_location,get_ned_pos_x(),get_ned_pos_y(),get_ned_vel_x(),get_ned_vel_y());
@@ -2750,7 +2779,7 @@ void debug(void){
 //	dataflash->set_param_float(param->acro_yaw_p.num, 3.6);
 //	dataflash->get_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
 //	usb_printf("%f\n",param->acro_yaw_p.value);
-//	usb_printf("%f\n",motors->get_throttle());
+//	usb_printf("%f\n",motors->get_throttle_hover());
 //	usb_printf("%f|%f\n",param.throttle_filt.value,param.angle_max.value);
 //	usb_printf("x:%f ",param->accel_offsets.value.x);
 //	usb_printf("lat:%d \n",gps_position->lat);
@@ -2758,7 +2787,7 @@ void debug(void){
 //	usb_printf("z:%f\n",param->accel_offsets.value.z);
 //	usb_printf("baro:%f,",spl06_data.baro_alt);
 //	usb_printf("temp:%f\n",spl06_data.temp);
-//	usb_printf("alt:%f\n",get_alt_target());
+//	usb_printf("alt:%f\n",get_baroalt_filt());
 //	float cos_tilt = ahrs_cos_pitch() * ahrs_cos_roll();
 //	usb_printf("%f|%f|%f\n", pitch_deg, roll_deg, yaw_deg);
 //	usb_printf("l:%f\n",get_mag_filt().length());
@@ -2779,7 +2808,7 @@ void debug(void){
 //	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
 //	usb_printf("vib:%f\n", param->vib_land.value);
 //	s2_printf("x:%f,y:%f\n", x_target, y_target);
-//	usb_printf("pos_z:%f|%f|%f|%f\n",spl06_data.baro_alt,get_pos_z(),get_vel_z(),accel_ef.z);
+//	usb_printf("pos_z:%f|%f|%f|%f\n",get_baroalt_filt(),get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("speed:%f\n",param->auto_land_speed.value);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
 //	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());

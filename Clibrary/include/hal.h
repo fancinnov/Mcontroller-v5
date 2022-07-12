@@ -324,6 +324,7 @@ void MAG_Get_Data(void);
 //气压计驱动
 uint8_t BARO_Init(void);
 void BARO_Get_Date(void);
+void Baro_set_press_offset(float vel); //速度单位:m/s
 
 /***fram驱动函数为底层驱动，它的上层函数在Cpplibrary中的flash.h***/
 void FRAM_Init(void);//FRAM 初始化

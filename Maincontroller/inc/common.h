@@ -34,7 +34,7 @@
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_I
-  # define AC_ATC_MULTI_RATE_PITCH_I          0.02f //0.135
+  # define AC_ATC_MULTI_RATE_PITCH_I          0.02f //0.072
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_D
@@ -46,7 +46,7 @@
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_I
-  # define AC_ATC_MULTI_RATE_ROLL_I           0.02f //0.135
+  # define AC_ATC_MULTI_RATE_ROLL_I           0.02f //0.072
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_D
@@ -60,13 +60,13 @@
  # define AC_ATC_MULTI_RATE_RP_FILT_HZ      20.0f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_P
- # define AC_ATC_MULTI_RATE_YAW_P           0.16f //0.18
+ # define AC_ATC_MULTI_RATE_YAW_P           0.16f //0.5
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_I
- # define AC_ATC_MULTI_RATE_YAW_I           0.016f //0.018
+ # define AC_ATC_MULTI_RATE_YAW_I           0.016f //0.25
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_D
- # define AC_ATC_MULTI_RATE_YAW_D           0.0f
+ # define AC_ATC_MULTI_RATE_YAW_D           0.0f //0.125
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_IMAX
  # define AC_ATC_MULTI_RATE_YAW_IMAX        0.3f //0.5
@@ -165,7 +165,7 @@
 #define MOTORS_SPOOL_UP_TIME_DEFAULT 0.5f
 #define VIB_LAND_THR 6.0f
 #define ACRO_YAW_EXPO 0.0f
-#define ACRO_YAW_P 4.5f
+#define ACRO_YAW_P 1.5f
 #define MAN_THR_FILT_HZ 0.5f
 
 bool arm_motors(void);

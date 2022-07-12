@@ -47,9 +47,9 @@ void mode_perch(void){
 	//desire hover angle
 	float ch7=get_channel_7();
 	if(ch7>=0.7&&ch7<1.0){
-		desire_pitch_rad=20*DEG_TO_RAD;
+		desire_pitch_rad=45*DEG_TO_RAD;
 	}else if(ch7>=0.3&&ch7<0.7){
-		desire_pitch_rad=10*DEG_TO_RAD;
+		desire_pitch_rad=22*DEG_TO_RAD;
 	}else{
 		desire_pitch_rad=0;
 	}
