@@ -294,7 +294,7 @@ typedef enum{
 static TFmini_state tfmini_state=TFMINI_IDLE;
 static uint8_t chk_cal = 0, data_num=0;
 static uint8_t tfmini_data[6];
-static Vector3f tfmini_offset=Vector3f(0.0f,-9.0f, 0.0f);//激光测距仪相对于机体中心的坐标,单位:cm (机头方向为x轴正方向, 机体右侧为y轴正方向)
+static Vector3f tfmini_offset=Vector3f(0.0f, 0.0f, 0.0f);//激光测距仪相对于机体中心的坐标,单位:cm (机头方向为x轴正方向, 机体右侧为y轴正方向)
 static uint16_t cordist = 0, strength=0;
 void get_tfmini_data(uint8_t buf)
 {
@@ -1804,7 +1804,8 @@ void update_baro_alt(void){
 			Baro_set_press_offset(0.0f);
 			use_alt_correct=false;
 		}
-		if(baro_alt_raw-baro_alt_filt>200||baro_alt_raw-baro_alt_filt<-200){//过滤掉奇异值
+		if(baro_alt_raw-baro_alt_last_raw>200||baro_alt_raw-baro_alt_last_raw<-200){//过滤掉奇异值
+			baro_alt_last_raw=baro_alt_raw;
 			return;
 		}
 		if(use_alt_correct){
@@ -1923,11 +1924,11 @@ void ekf_gnss_xy(void){
 }
 
 float get_pos_x(void){//cm
-	return odom_pos_xy_filt.x;
+	return ekf_gnss->pos_x;
 }
 
 float get_pos_y(void){//cm
-	return odom_pos_xy_filt.y;
+	return ekf_gnss->pos_y;
 }
 
 float get_pos_z(void){//cm
@@ -1935,11 +1936,11 @@ float get_pos_z(void){//cm
 }
 
 float get_vel_x(void){//cm/s
-	return odom_vel_xy_filt.x;
+	return ekf_gnss->vel_x;
 }
 
 float get_vel_y(void){//cm/s
-	return odom_vel_xy_filt.y;
+	return ekf_gnss->vel_y;
 }
 
 float get_vel_z(void){//cm/s
@@ -2807,7 +2808,7 @@ void debug(void){
 //	usb_printf("pos_x:%f|%f,pos_y:%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());
 //	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
 //	usb_printf("vib:%f\n", param->vib_land.value);
-//	s2_printf("x:%f,y:%f\n", x_target, y_target);
+//	usb_printf("%f\n", get_rangefinder_alt());
 //	usb_printf("pos_z:%f|%f|%f|%f\n",get_baroalt_filt(),get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("speed:%f\n",param->auto_land_speed.value);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());

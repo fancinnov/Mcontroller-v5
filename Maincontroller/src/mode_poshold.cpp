@@ -34,6 +34,8 @@ void mode_poshold(void){
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
+	pos_control->set_speed_xy(500);
+	pos_control->set_accel_xy(100);
 
 	// get pilot desired lean angles
 	float target_roll, target_pitch;
@@ -159,7 +161,7 @@ void mode_poshold(void){
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{//巡线模式
 			if(sdlog->gnss_point_num>0){
 				if(target_point<sdlog->gnss_point_num){
@@ -190,7 +192,7 @@ void mode_poshold(void){
 				pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				target_yaw+=target_yaw_rate*_dt;
-				attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}
 		}
 

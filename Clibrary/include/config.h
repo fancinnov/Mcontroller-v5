@@ -67,10 +67,10 @@
 #define USE_MAG 1 // if use mag, set 1; if not use mag, set 0;
 
 //配置GPS
-#define USE_GPS 0 // if use gps, set 1; if not use gps, set 0;
+#define USE_GPS 1 // if use gps, set 1; if not use gps, set 0;
 
 //配置UWB
-#define USE_UWB 1 // if use uwb, set 1; if don't use uwb, set 0;
+#define USE_UWB 0 // if use uwb, set 1; if don't use uwb, set 0;
 
 //配置flash
 #define USE_FRAM 2 //保持默认值,请勿更改

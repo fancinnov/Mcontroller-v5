@@ -87,9 +87,9 @@ void mode_update(void){
 				}
 			}
 		}else{
-			if(robot_sub_mode!=MODE_AUTONAV){
-				if(mode_autonav_init()){
-					robot_sub_mode=MODE_AUTONAV;
+			if(robot_sub_mode!=MODE_POSHOLD){
+				if(mode_poshold_init()){
+					robot_sub_mode=MODE_POSHOLD;
 				}
 			}
 		}
