@@ -1762,6 +1762,10 @@ void ahrs_update(void){
 static float baro_alt=0,baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_last_raw,gps_alt_last;
 static uint16_t init_baro=0;
 static bool use_alt_correct=false;
+static uint32_t baro_bad_detect_time=0;
+static float baro_alt_delta_detect[5]={0},baro_alt_delta_detect_sum=0;
+static uint8_t baro_detect_num=0;
+static bool baro_limited=false;
 void update_baro_alt(void){
 	if(init_baro<200){//前200点不要
 		init_baro++;
@@ -1807,6 +1811,31 @@ void update_baro_alt(void){
 		if(baro_alt_raw-baro_alt_last_raw>200||baro_alt_raw-baro_alt_last_raw<-200){//过滤掉奇异值
 			baro_alt_last_raw=baro_alt_raw;
 			return;
+		}
+		Vector2f gyro_2d(gyro_correct.x, gyro_correct.y);
+		if(gyro_2d.length()>1){//姿态剧烈变化触发气压波动检测
+			baro_bad_detect_time=HAL_GetTick();
+		}
+		if((HAL_GetTick()-baro_bad_detect_time)<1000){//检测1s内气压波动
+			if(!baro_limited){
+				baro_alt_delta_detect[baro_detect_num]=(baro_alt_raw-baro_alt_last_raw);
+				baro_alt_delta_detect_sum=baro_alt_delta_detect[0]+baro_alt_delta_detect[1]+baro_alt_delta_detect[2]+baro_alt_delta_detect[3]+baro_alt_delta_detect[4];
+				if(baro_alt_delta_detect_sum>25 && motors->get_throttle()<motors->get_throttle_hover()){
+					baro_limited=true;
+				}
+				baro_detect_num++;
+				if(baro_detect_num>=5){
+					baro_detect_num=0;
+				}
+			}
+		}else{//超时则重置气压波动检测
+			baro_limited=false;
+		}
+		if(baro_limited && motors->get_throttle()>motors->get_throttle_hover()){
+			baro_limited=false;
+		}
+		if(baro_limited){
+			baro_alt_raw=baro_alt_last_raw;
 		}
 		if(use_alt_correct){
 			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*0.95+(ned_current_pos.z-gps_alt_last)*0.05;
@@ -2684,8 +2713,8 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_EULER
 			"pitchr", "rollr", "yawr", "pitchd", "rolld", "yawd");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s ",//LOG_ACCEL_EARTH_FRAME and VIB
-			"efx", "efy", "efz", "vib_vl", "vib_ag");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_ACCEL_EARTH_FRAME and VIB
+			"gyrox_t", "gyroy_t", "gyroz_t", "efx", "efy", "efz", "vib_vl", "vib_ag");
 	osDelay(1);
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_Z
 			"barofilt", "alt_t", "pos_z", "vel_z_t", "vel_z", "rf_alt", "rf_alt_t");
@@ -2730,8 +2759,8 @@ void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_EULER
 			ahrs_pitch_rad(), ahrs_roll_rad(), ahrs_yaw_rad(), ahrs_pitch_deg(), ahrs_roll_deg(), ahrs_yaw_deg());
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_ACCEL_EARTH_FRAME and VIB
-			get_accel_ef().x, get_accel_ef().y, get_accel_ef().z, get_vib_value(), get_vib_angle_z());
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_ACCEL_EARTH_FRAME and VIB
+			attitude->rate_bf_targets().x, attitude->rate_bf_targets().y, attitude->rate_bf_targets().z, get_accel_ef().x, get_accel_ef().y, get_accel_ef().z, get_vib_value(), get_vib_angle_z());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_Z
 			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target());
