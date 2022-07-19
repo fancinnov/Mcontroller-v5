@@ -1762,10 +1762,7 @@ void ahrs_update(void){
 static float baro_alt=0,baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_last_raw,gps_alt_last;
 static uint16_t init_baro=0;
 static bool use_alt_correct=false;
-static uint32_t baro_bad_detect_time=0;
-static float baro_alt_delta_detect[5]={0},baro_alt_delta_detect_sum=0;
-static uint8_t baro_detect_num=0;
-static bool baro_limited=false;
+static float baro_lpf=1.0f;
 void update_baro_alt(void){
 	if(init_baro<200){//前200点不要
 		init_baro++;
@@ -1801,10 +1798,24 @@ void update_baro_alt(void){
 				}
 			}
 			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
-			float vel=constrain_float(vel_2d.length(), 0.0f, 8.0f);//最大速度限制为8m/s
-			Baro_set_press_offset(vel);
+			float vel=vel_2d.length();
+			Baro_set_press_offset(constrain_float(vel, 0.0f, 5.0f));//最大补偿速度限制为5m/s
+			if(vel>8.0f){
+				baro_lpf=0.05;
+			}else if(vel>5.0f){
+				baro_lpf=0.1;
+			}else if(vel>3.0f){
+				baro_lpf=0.2;
+			}else if(vel>2.0f){
+				baro_lpf=0.4;
+			}else if(vel>1.0f){
+				baro_lpf=0.8;
+			}else{
+				baro_lpf=1.0;
+			}
 		}else{
 			//TODO:add other sensor correct
+			baro_lpf=1.0;
 			Baro_set_press_offset(0.0f);
 			use_alt_correct=false;
 		}
@@ -1812,36 +1823,11 @@ void update_baro_alt(void){
 			baro_alt_last_raw=baro_alt_raw;
 			return;
 		}
-		Vector2f gyro_2d(gyro_correct.x, gyro_correct.y);
-		if(gyro_2d.length()>1){//姿态剧烈变化触发气压波动检测
-			baro_bad_detect_time=HAL_GetTick();
-		}
-		if((HAL_GetTick()-baro_bad_detect_time)<1000){//检测1s内气压波动
-			if(!baro_limited){
-				baro_alt_delta_detect[baro_detect_num]=(baro_alt_raw-baro_alt_last_raw);
-				baro_alt_delta_detect_sum=baro_alt_delta_detect[0]+baro_alt_delta_detect[1]+baro_alt_delta_detect[2]+baro_alt_delta_detect[3]+baro_alt_delta_detect[4];
-				if(baro_alt_delta_detect_sum>25 && motors->get_throttle()<motors->get_throttle_hover()){
-					baro_limited=true;
-				}
-				baro_detect_num++;
-				if(baro_detect_num>=5){
-					baro_detect_num=0;
-				}
-			}
-		}else{//超时则重置气压波动检测
-			baro_limited=false;
-		}
-		if(baro_limited && motors->get_throttle()>motors->get_throttle_hover()){
-			baro_limited=false;
-		}
-		if(baro_limited){
-			baro_alt_raw=baro_alt_last_raw;
-		}
 		if(use_alt_correct){
-			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*0.95+(ned_current_pos.z-gps_alt_last)*0.05;
+			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*0.95*baro_lpf+(ned_current_pos.z-gps_alt_last)*0.05;
 			gps_alt_last=ned_current_pos.z;
 		}else{
-			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw);
+			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*baro_lpf;
 		}
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt);
 		baro_alt_last=baro_alt;

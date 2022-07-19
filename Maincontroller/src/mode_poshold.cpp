@@ -154,8 +154,8 @@ void mode_poshold(void){
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
-			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
+			vx_target_bf=-get_channel_pitch()*500;//最大速度100cm/s
+			vy_target_bf=get_channel_roll()*500;//最大速度100cm/s
 			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
