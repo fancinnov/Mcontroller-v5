@@ -50,8 +50,8 @@ static bool rc_channels_sendback=false;
 
 static float accel_filt_hz=10;//HZ
 static float gyro_filt_hz=20;//HZ
-static float mag_filt_hz=2.5;//HZ
-static float baro_filt_hz=5;//HZ
+static float mag_filt_hz=5;//HZ
+static float baro_filt_hz=0.5;//HZ
 static float accel_ef_filt_hz=10;//HZ
 static float uwb_pos_filt_hz=5;//HZ
 static float odom_pos_filt_hz=5;//HZ
@@ -76,7 +76,7 @@ static Location gnss_origin_pos, gnss_current_pos;
 static Vector3f ned_current_pos, ned_current_vel;
 static Matrix3f dcm_matrix, dcm_matrix_correct;										//旋转矩阵
 static LowPassFilter2pVector3f	_accel_filter, _gyro_filter, _accel_ef_filter;
-static LowPassFilter2pFloat _baro_alt_filter;
+static LowPassFilterFloat _baro_alt_filter;
 static LowPassFilterVector3f _mag_filter, _uwb_pos_filter;
 static LowPassFilterVector2f _odom_vel_filter, _odom_pos_filter;
 
@@ -1759,79 +1759,54 @@ void ahrs_update(void){
 	}
 }
 
-static float baro_alt=0,baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_last_raw,gps_alt_last;
+static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0;
 static uint16_t init_baro=0;
-static bool use_alt_correct=false;
-static float baro_lpf=1.0f;
+static float baro_lpf=0.5f;
 void update_baro_alt(void){
-	if(init_baro<200){//前200点不要
+	if(init_baro<20){//前20点不要
 		init_baro++;
 		return;
 	}
-	float baro_alt_raw=spl06_data.baro_alt*100.0f;
-	if(isnan(baro_alt_raw) || isinf(baro_alt_raw)){
+	float baro_alt=spl06_data.baro_alt*100.0f;
+	if(isnan(baro_alt) || isinf(baro_alt)){
 		return;
 	}
-	if(fabs(baro_alt_raw)>800000 || is_equal(baro_alt_raw, 0.0f)){
+	if(fabs(baro_alt)>800000 || is_equal(baro_alt, 0.0f)){
 		return;
 	}
-	if(init_baro<300){
-		baro_alt_init+=baro_alt_raw/100;
+	if(init_baro<30){
+		baro_alt_init+=baro_alt/10;
 		init_baro++;
 		return;
 	}
 	if(!initial_baro){
-		_baro_alt_filter.set_cutoff_frequency(100, baro_filt_hz);
+		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
 		baro_alt_last=0;
-		baro_alt_last_raw=0;
 		initial_baro=true;
 	}else{
-		baro_alt_raw-=baro_alt_init;
+		baro_alt-=baro_alt_init;
+		baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -25.0f, 25.0f);
 		if(get_gps_state()){
-			if(is_equal(gps_alt_last, 0.0f)){
-				gps_alt_last=ned_current_pos.z;
-			}else{
-				if(is_equal(ned_current_pos.z, gps_alt_last)){
-					use_alt_correct=false;
-				}else{
-					use_alt_correct=true;
-				}
-			}
 			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
 			float vel=vel_2d.length();
-			Baro_set_press_offset(constrain_float(vel, 0.0f, 5.0f));//最大补偿速度限制为5m/s
-			if(vel>8.0f){
+			if(vel>5.0f){
 				baro_lpf=0.05;
-			}else if(vel>5.0f){
-				baro_lpf=0.1;
 			}else if(vel>3.0f){
-				baro_lpf=0.2;
+				baro_lpf=0.1;
 			}else if(vel>2.0f){
-				baro_lpf=0.4;
+				baro_lpf=0.15;
 			}else if(vel>1.0f){
-				baro_lpf=0.8;
+				baro_lpf=0.3;
 			}else{
-				baro_lpf=1.0;
+				baro_lpf=0.5;
 			}
 		}else{
 			//TODO:add other sensor correct
-			baro_lpf=1.0;
-			Baro_set_press_offset(0.0f);
-			use_alt_correct=false;
+			baro_lpf=0.5;
 		}
-		if(baro_alt_raw-baro_alt_last_raw>200||baro_alt_raw-baro_alt_last_raw<-200){//过滤掉奇异值
-			baro_alt_last_raw=baro_alt_raw;
-			return;
-		}
-		if(use_alt_correct){
-			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*0.95*baro_lpf+(ned_current_pos.z-gps_alt_last)*0.05;
-			gps_alt_last=ned_current_pos.z;
-		}else{
-			baro_alt=baro_alt_last+(baro_alt_raw-baro_alt_last_raw)*baro_lpf;
-		}
+		_baro_alt_filter.set_cutoff_frequency(10, baro_lpf);
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt);
 		baro_alt_last=baro_alt;
-		baro_alt_last_raw=baro_alt_raw;
 		get_baro_alt_filt=true;
 	}
 }

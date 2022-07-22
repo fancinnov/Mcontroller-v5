@@ -436,7 +436,6 @@ void Loop100hzTask(void *argument)
 	  MPU_CS_H;
 	  BARO_CS_L;
 	  BARO_Get_Date();
-	  update_baro_alt();
 	  BARO_CS_H;
 	  /***Do not change code above and add new code below***/
 	  lock_motors_check();
