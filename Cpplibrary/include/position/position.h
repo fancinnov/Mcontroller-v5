@@ -365,7 +365,6 @@ protected:
 
     // parameters
     float    _accel_xy_filt_hz;      // XY acceleration filter cutoff frequency
-    float    _vel_target_xy_filt_hz; // XY velocity target filter cutoff frequency
     float    _lean_angle_max;        // Maximum autopilot commanded angle (in degrees). Set to zero for Angle Max
     P        _p_pos_z;
     P        _p_vel_z;

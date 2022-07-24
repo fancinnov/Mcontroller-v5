@@ -106,8 +106,14 @@ void mode_poshold(void){
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else{//定位模式(下挡位)
-			vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
-			vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
+			vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
+			vy_target_bf=get_channel_roll()*500;//最大速度500/s
+			if(abs(vx_target_bf)<10.0f){
+				vx_target_bf=0.0f;
+			}
+			if(abs(vy_target_bf)<10.0f){
+				vy_target_bf=0.0f;
+			}
 			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
@@ -154,8 +160,14 @@ void mode_poshold(void){
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-			vx_target_bf=-get_channel_pitch()*500;//最大速度100cm/s
-			vy_target_bf=get_channel_roll()*500;//最大速度100cm/s
+			vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
+			vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
+			if(abs(vx_target_bf)<10.0f){
+				vx_target_bf=0.0f;
+			}
+			if(abs(vy_target_bf)<10.0f){
+				vy_target_bf=0.0f;
+			}
 			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
@@ -185,8 +197,14 @@ void mode_poshold(void){
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{
-				vx_target_bf=-get_channel_pitch()*100;//最大速度100cm/s
-				vy_target_bf=get_channel_roll()*100;//最大速度100cm/s
+				vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
+				vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
+				if(abs(vx_target_bf)<10.0f){
+					vx_target_bf=0.0f;
+				}
+				if(abs(vy_target_bf)<10.0f){
+					vy_target_bf=0.0f;
+				}
 				vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
 				vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
 				pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);

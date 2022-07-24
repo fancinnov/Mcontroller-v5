@@ -27,6 +27,7 @@ bool mode_autonav_init(void){
 
 static float ch7=0.0f;
 static float theta=0.0f;
+static float vel_last_x=0.0f, vel_last_y=0.0f, vel_last_time=0.0f;
 void mode_autonav(void){
 	AltHoldModeState althold_state;
 	float takeoff_climb_rate = 0.0f;
@@ -174,6 +175,14 @@ void mode_autonav(void){
 			theta+=(M_PI/12/400);
 			pos_control->set_xy_target(200+50*cosf(theta), -200.0f+50*sinf(theta));
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+			if(HAL_GetTick()-vel_last_time>10){//超过10ms没有更新则重置前馈控制器
+				vel_last_x=pos_control->get_vel_target().x;
+				vel_last_y=pos_control->get_vel_target().y;
+			}
+			pos_control->set_desired_accel_xy((pos_control->get_vel_target().x-vel_last_x)/_dt, (pos_control->get_vel_target().y-vel_last_y)/_dt);
+			vel_last_x=pos_control->get_vel_target().x;
+			vel_last_y=pos_control->get_vel_target().y;
+			vel_last_time=HAL_GetTick();
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{
 			target_yaw+=target_yaw_rate*_dt;

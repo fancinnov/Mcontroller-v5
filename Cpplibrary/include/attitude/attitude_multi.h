@@ -15,11 +15,11 @@
 #include "pid/p.h"
 
 #define AC_ATTITUDE_ACCEL_RP_CONTROLLER_MIN_RADSS       radians(40.0f)   // minimum body-frame acceleration limit for the stability controller (for roll and pitch axis)
-#define AC_ATTITUDE_ACCEL_RP_CONTROLLER_MAX_RADSS       radians(720.0f)  // maximum body-frame acceleration limit for the stability controller (for roll and pitch axis)
+#define AC_ATTITUDE_ACCEL_RP_CONTROLLER_MAX_RADSS       radians(1000.0f)  // maximum body-frame acceleration limit for the stability controller (for roll and pitch axis)
 #define AC_ATTITUDE_ACCEL_Y_CONTROLLER_MIN_RADSS        radians(10.0f)   // minimum body-frame acceleration limit for the stability controller (for yaw axis)
 #define AC_ATTITUDE_ACCEL_Y_CONTROLLER_MAX_RADSS        radians(120.0f)  // maximum body-frame acceleration limit for the stability controller (for yaw axis)
-#define AC_ATTITUDE_CONTROL_SLEW_YAW_DEFAULT_DS        30      // constraint on yaw angle error in degrees.  This should lead to maximum turn rate of 10deg/sec * Stab Rate P so by default will be 45deg/sec.
-#define AC_ATTITUDE_CONTROL_ACCEL_RP_MAX_DEFAULT_DSS   1080.0f // default maximum acceleration for roll/pitch axis in centidegrees/sec/sec
+#define AC_ATTITUDE_CONTROL_SLEW_YAW_DEFAULT_DS        45      // constraint on yaw angle error in degrees.  This should lead to maximum turn rate of 10deg/sec * Stab Rate P so by default will be 45deg/sec.
+#define AC_ATTITUDE_CONTROL_ACCEL_RP_MAX_DEFAULT_DSS   1100.0f // default maximum acceleration for roll/pitch axis in centidegrees/sec/sec
 #define AC_ATTITUDE_CONTROL_ACCEL_Y_MAX_DEFAULT_DSS    270.0f  // default maximum acceleration for yaw axis in centidegrees/sec/sec
 
 #define AC_ATTITUDE_RATE_CONTROLLER_TIMEOUT             1.0f    // body-frame rate controller timeout in seconds
@@ -42,7 +42,7 @@
 #define AC_ATTITUDE_CONTROL_MAX                         5.0f    // maximum throttle mix default
 
 #define AC_ATTITUDE_CONTROL_THR_MIX_DEFAULT             0.5f    // ratio controlling the max throttle output during competing requests of low throttle from the pilot (or autopilot) and higher throttle for attitude control.  Higher favours Attitude over pilot input
-#define AC_ATTITUDE_CONTROL_INPUT_TC_DEFAULT            0.5f    // Soft
+#define AC_ATTITUDE_CONTROL_INPUT_TC_DEFAULT            0.15f   // medium
 
 #ifdef __cplusplus
 // @class	Attitude_Multi
