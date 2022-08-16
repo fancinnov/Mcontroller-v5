@@ -27,29 +27,30 @@ void mode_althold(void){
 	AltHoldModeState althold_state;
 	float takeoff_climb_rate = 0.0f;
 	// initialize vertical speeds and acceleration
-	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
-	pos_control->set_accel_z(param->pilot_accel_z.value);
+	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);//设置z轴最大最小速度
+	pos_control->set_accel_z(param->pilot_accel_z.value);//设置z轴最大加速度
 
 	// get pilot desired lean angles
 	float target_roll, target_pitch;
-	get_pilot_desired_lean_angles(target_roll, target_pitch, param->angle_max.value, attitude->get_althold_lean_angle_max());
+	get_pilot_desired_lean_angles(target_roll, target_pitch, param->angle_max.value, attitude->get_althold_lean_angle_max());//获取摇杆的目标俯仰滚转角
 
 	// get pilot's desired yaw rate
-	float target_yaw_rate = get_pilot_desired_yaw_rate(get_channel_yaw_angle());
+	float target_yaw_rate = get_pilot_desired_yaw_rate(get_channel_yaw_angle());//获取摇杆设置的目标偏航角速度
 
 	// get pilot desired climb rate
-	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());
+	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());//获取摇杆设置的目标爬升速率
 	target_climb_rate = constrain_float(target_climb_rate, -param->pilot_speed_dn.value, param->pilot_speed_up.value);
 
 	// Alt Hold State Machine Determination
+	//更新飞行状态
 	if (!motors->get_armed()) {
-		althold_state = AltHold_MotorStopped;
+		althold_state = AltHold_MotorStopped;//电机锁定状态
 	} else if (takeoff_running() || takeoff_triggered(target_climb_rate) || get_takeoff()) {
-		althold_state = AltHold_Takeoff;
+		althold_state = AltHold_Takeoff;//起飞状态
 	} else if (ap->land_complete) {
-		althold_state = AltHold_Landed;
+		althold_state = AltHold_Landed;//降落状态
 	} else {
-		althold_state = AltHold_Flying;
+		althold_state = AltHold_Flying;//飞行中状态
 	}
 
 	// Alt Hold State Machine
@@ -122,7 +123,7 @@ void mode_althold(void){
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 		// call attitude controller
 		target_yaw+=target_yaw_rate*_dt;
-		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);//姿态控制外环
 		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
 			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用
 			set_thr_force_decrease(true);
@@ -135,16 +136,16 @@ void mode_althold(void){
 		}
 
 		// surface tracking that adjust climb rate using rangefinder
-		target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);
+		target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);//地形跟随
 
 		// call position controller
-		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
+		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);//从目标爬升速率设置目标高度
 
-		pos_control->update_z_controller(get_pos_z(), get_vel_z());
+		pos_control->update_z_controller(get_pos_z(), get_vel_z());//高度控制串级PID
 		break;
 	default:
 		break;
 	}
-	attitude->rate_controller_run();
-	motors->output();
+	attitude->rate_controller_run();//角速率PID控制（姿态控制内环）
+	motors->output();//电机输出
 }

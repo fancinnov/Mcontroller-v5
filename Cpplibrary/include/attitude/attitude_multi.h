@@ -42,7 +42,7 @@
 #define AC_ATTITUDE_CONTROL_MAX                         5.0f    // maximum throttle mix default
 
 #define AC_ATTITUDE_CONTROL_THR_MIX_DEFAULT             0.5f    // ratio controlling the max throttle output during competing requests of low throttle from the pilot (or autopilot) and higher throttle for attitude control.  Higher favours Attitude over pilot input
-#define AC_ATTITUDE_CONTROL_INPUT_TC_DEFAULT            0.15f   // medium
+#define AC_ATTITUDE_CONTROL_INPUT_TC_DEFAULT            0.15f   //  0.15~0.5 Low numbers lead to sharper response, higher numbers to softer response
 
 #ifdef __cplusplus
 // @class	Attitude_Multi

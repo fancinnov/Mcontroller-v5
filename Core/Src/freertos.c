@@ -303,7 +303,7 @@ void InitTask(void *argument)
   rbInit(&ringbuffer_comm4_send, TxBuffer_comm4, URAT_DMA_Buffer_length);
 
   usb_printf("\r\nSystem initializing ...\r\n");
-  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM|MLINK_ESP);
+  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM);
   FRAM_Init();
   update_dataflash();
   RC_Input_Init(RC_INPUT_SBUS);
@@ -311,7 +311,6 @@ void InitTask(void *argument)
   IMU_Init();
   MAG_Init();
   while(BARO_Init());
-  gyro_calibrate();
   motors_init();
   attitude_init();
   pos_init();

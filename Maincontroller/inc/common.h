@@ -120,7 +120,7 @@
 #endif
 
 #ifndef RANGEFINDER_GAIN_DEFAULT
- # define RANGEFINDER_GAIN_DEFAULT 0.1f     // gain for controlling how quickly rangefinder range adjusts target altitude (lower means slower reaction)
+ # define RANGEFINDER_GAIN_DEFAULT 0.8f     // gain for controlling how quickly rangefinder range adjusts target altitude (lower means slower reaction)
 #endif
 
 #ifndef THR_SURFACE_TRACKING_VELZ_MAX
@@ -235,7 +235,6 @@ float get_mav_vy_target(void);
 float get_vib_value(void);
 float get_vib_angle_z(void);
 
-bool get_mav_yaw_state(void);
 bool get_gnss_location_state(void);
 bool has_manual_throttle(void);
 void set_manual_throttle(bool manual_throttle);

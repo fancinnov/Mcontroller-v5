@@ -57,7 +57,6 @@ static float uwb_pos_filt_hz=5;//HZ
 static float odom_pos_filt_hz=5;//HZ
 static float odom_vel_filt_hz=5;//HZ
 static float rangefinder_filt_hz=5;//HZ
-static float pitch_rad_raw=0 , roll_rad_raw=0 , yaw_rad_raw=0;
 static float pitch_rad=0 , roll_rad=0 , yaw_rad=0;
 static float pitch_deg=0 , roll_deg=0 , yaw_deg=0;
 static float cos_roll=0, cos_pitch=0, cos_yaw=0, sin_roll=0, sin_pitch=0, sin_yaw=0;
@@ -157,7 +156,6 @@ float get_odom_x(void){return odom_3d.x;}
 float get_odom_y(void){return odom_3d.y;}
 float get_odom_z(void){return odom_3d.z;}
 float get_yaw_map(void){return yaw_map;}
-bool get_mav_yaw_state(void){return get_mav_yaw;}
 bool get_gnss_location_state(void){return get_gnss_location;}
 
 float get_mav_x_target(void){return mav_x_target;}
@@ -173,6 +171,7 @@ void update_dataflash(void){
 	uint16_t addr_num_max=dataflash->get_addr_num_max();
 	if(addr_num_max>1000){
 		dataflash->reset_addr_num_max();
+		addr_num_max=dataflash->get_addr_num_max();
 	}
 	if(addr_num_max<=0){
 		dataflash->set_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
@@ -294,7 +293,7 @@ typedef enum{
 static TFmini_state tfmini_state=TFMINI_IDLE;
 static uint8_t chk_cal = 0, data_num=0;
 static uint8_t tfmini_data[6];
-static Vector3f tfmini_offset=Vector3f(0.0f, 0.0f, 0.0f);//激光测距仪相对于机体中心的坐标,单位:cm (机头方向为x轴正方向, 机体右侧为y轴正方向)
+static Vector3f tfmini_offset=Vector3f(0.0f,-4.5f, 0.0f);//激光测距仪相对于机体中心的坐标,单位:cm (机头方向为x轴正方向, 机体右侧为y轴正方向)
 static uint16_t cordist = 0, strength=0;
 void get_tfmini_data(uint8_t buf)
 {
@@ -1019,10 +1018,6 @@ void send_mavlink_heartbeat_data(void){
 			mavlink_send_buffer(MAVLINK_COMM_4, &msg_battery_status);
 		}
 	}
-	if(get_mav_yaw&&((HAL_GetTick()-time_last_attitude)>1000)){
-		//外接机载电脑连上又断了
-		get_mav_yaw=false;
-	}
 }
 
 void send_mavlink_mission_ack(mavlink_channel_t chan, MAV_MISSION_RESULT result){
@@ -1598,6 +1593,10 @@ bool gyro_calibrate(void){
 		gyro_sum.zero();
 		accel_start = accel_filt;
 		for (i=0; i<100; i++) {
+			MPU_CS_L;
+		    IMU_Request_Data();
+		    IMU_Get_Data();
+		    MPU_CS_H;
 			gyro_sum += gyro;
 			osDelay(5);
 		}
@@ -1664,8 +1663,8 @@ void update_mag_data(void){
 
 	mag_correct=mag+param->mag_offsets.value;
 
-	if((!is_equal(param->mag_offsets.value.x,0.0f))&&(!is_equal(param->mag_offsets.value.y,0.0f))&&(!is_equal(param->mag_offsets.value.z,0.0f))){
-		mag_corrected=true;
+	if(is_equal(param->mag_offsets.value.x,0.0f)||is_equal(param->mag_offsets.value.y,0.0f)||is_equal(param->mag_offsets.value.z,0.0f)){
+		return;
 	}
 
 	if(!initial_mag){
@@ -1674,6 +1673,7 @@ void update_mag_data(void){
 		initial_mag=true;
 	}else{
 		mag_filt = _mag_filter.apply(mag_correct);
+		mag_corrected=true;
 	}
 }
 
@@ -1710,8 +1710,8 @@ void ahrs_update(void){
 
 	if(horizon_correct){
 		horizon_correct_flag++;
-		roll_sum+=roll_rad_raw;
-		pitch_sum+=pitch_rad_raw;
+		roll_sum+=roll_rad;
+		pitch_sum+=pitch_rad;
 		if(horizon_correct_flag==100){
 			param->horizontal_correct.value.x=-roll_sum/100;
 			param->horizontal_correct.value.y=-pitch_sum/100;
@@ -1727,12 +1727,7 @@ void ahrs_update(void){
 	}
 
 	if(ahrs_stage_compass){
-		ahrs->update(USE_MAG&&mag_corrected, get_mav_yaw);
-		//由ahrs的四元数推出欧拉姿态角
-		roll_rad_raw = ahrs->quaternion2.get_euler_roll();
-		pitch_rad_raw =ahrs->quaternion2.get_euler_pitch();
-		yaw_rad_raw = ahrs->quaternion2.get_euler_yaw();
-
+		ahrs->update(USE_MAG, mag_corrected, get_mav_yaw);
 		//由ahrs的四元数推出旋转矩阵用于控制
 		ahrs->quaternion2.rotation_matrix(dcm_matrix);
 		dcm_matrix.normalize();
@@ -1753,15 +1748,14 @@ void ahrs_update(void){
 		sin_yaw=sinf(yaw_rad);
 		ahrs_healthy=true;
 	}
-	if(mag_correcting&&initial_mag){
+	if(USE_MAG&&mag_correcting){
 		compass_calibrate();
 		ahrs_healthy=false;
 	}
 }
 
-static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0;
+static float baro_alt_filt=0,baro_alt_init=0;
 static uint16_t init_baro=0;
-static float baro_lpf=0.5f;
 void update_baro_alt(void){
 	if(init_baro<20){//前20点不要
 		init_baro++;
@@ -1781,32 +1775,32 @@ void update_baro_alt(void){
 	}
 	if(!initial_baro){
 		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
-		baro_alt_last=0;
 		initial_baro=true;
 	}else{
 		baro_alt-=baro_alt_init;
-		baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -25.0f, 25.0f);
 		if(get_gps_state()){
 			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
 			float vel=vel_2d.length();
 			if(vel>5.0f){
-				baro_lpf=0.05;
+				baro_filt_hz=0.05;
 			}else if(vel>3.0f){
-				baro_lpf=0.1;
+				baro_filt_hz=0.1;
 			}else if(vel>2.0f){
-				baro_lpf=0.15;
+				baro_filt_hz=0.15;
 			}else if(vel>1.0f){
-				baro_lpf=0.3;
+				baro_filt_hz=0.3;
 			}else{
-				baro_lpf=0.5;
+				baro_filt_hz=0.5;
+			}
+			if(vel>2.0f&&abs(get_vel_z())<100.0f){
+				baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -25.0f, 25.0f);
 			}
 		}else{
 			//TODO:add other sensor correct
-			baro_lpf=0.5;
+			baro_filt_hz=0.5;
 		}
-		_baro_alt_filter.set_cutoff_frequency(10, baro_lpf);
+		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt);
-		baro_alt_last=baro_alt;
 		get_baro_alt_filt=true;
 	}
 }
@@ -2778,7 +2772,7 @@ void debug(void){
 //	usb_printf("z:%f\n",param->accel_offsets.value.z);
 //	usb_printf("baro:%f,",spl06_data.baro_alt);
 //	usb_printf("temp:%f\n",spl06_data.temp);
-//	usb_printf("alt:%f\n",get_baroalt_filt());
+//	usb_printf("alt:%f\n",get_rangefinder_alt());
 //	float cos_tilt = ahrs_cos_pitch() * ahrs_cos_roll();
 //	usb_printf("%f|%f|%f\n", pitch_deg, roll_deg, yaw_deg);
 //	usb_printf("l:%f\n",get_mag_filt().length());
@@ -2798,10 +2792,11 @@ void debug(void){
 //	usb_printf("pos_x:%f|%f,pos_y:%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());
 //	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
 //	usb_printf("vib:%f\n", param->vib_land.value);
-//	usb_printf("%f\n", get_rangefinder_alt());
+//	s2_printf("x:%f,y:%f\n", x_target, y_target);
 //	usb_printf("pos_z:%f|%f|%f|%f\n",get_baroalt_filt(),get_pos_z(),get_vel_z(),accel_ef.z);
 //	usb_printf("speed:%f\n",param->auto_land_speed.value);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
+//	usb_printf("gx:%f|gy:%f|gz:%f\n", gyro_offset.x, gyro_offset.y, gyro_offset.z);
 //	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
 //	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());

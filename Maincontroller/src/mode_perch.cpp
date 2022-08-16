@@ -156,7 +156,9 @@ void mode_perch(void){
 		}
 
 		// surface tracking that adjust climb rate using rangefinder
-		target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);
+		if(is_equal(desire_pitch_rad,0.0f)){
+			target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control->get_alt_target(), _dt);
+		}
 
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);

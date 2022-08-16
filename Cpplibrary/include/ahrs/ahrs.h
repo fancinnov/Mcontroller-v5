@@ -17,7 +17,7 @@ class AHRS{
 
 public:
 	AHRS(float dt);
-	void update(bool use_mag, bool get_mav_yaw);
+	void update(bool use_mag, bool &get_mag, bool &get_mav_yaw);
 	bool is_initialed(void){return initialed;}
 	void reset(void){
 		initialed=false;
