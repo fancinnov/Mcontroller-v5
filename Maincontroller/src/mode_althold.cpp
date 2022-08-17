@@ -124,12 +124,6 @@ void mode_althold(void){
 		// call attitude controller
 		target_yaw+=target_yaw_rate*_dt;
 		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);//姿态控制外环
-		if((!rangefinder_state.alt_healthy)&&((target_climb_rate+param->pilot_speed_dn.value)<10)){//cms
-			//油门拉到最低时强制油门下降 注意：该功能只在surface tracking无效时使用
-			set_thr_force_decrease(true);
-		}else{
-			set_thr_force_decrease(false);
-		}
 
 		if(robot_state_desired==STATE_DRIVE||robot_state_desired==STATE_LANDED){//自动降落
 			target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
