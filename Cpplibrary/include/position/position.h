@@ -165,6 +165,7 @@ public:
 
     /// get_lean_angle_max_d - returns the maximum lean angle the autopilot may request
     float get_lean_angle_max_d() const;
+    void set_lean_angle_max_d(float degree){_lean_angle_max=degree;}
 
     /// init_xy_controller - initialise the xy controller
     ///     sets target roll angle, pitch angle and I terms based on vehicle current lean angles

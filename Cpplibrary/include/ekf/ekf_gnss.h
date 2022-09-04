@@ -22,6 +22,8 @@ public:
 	float pos_x=0, pos_y=0, vel_x=0, vel_y=0;
 
 private:
+	float _filt_alpha(float dt, float filt_hz);
+	float _alpha=0;
 	float Qt[4]={1.0f,1.0f,1.0f,1.0f};//观测数据的方差
 	float T_odom=0.0025; //2.5ms
 	bool initialed=false;
@@ -48,7 +50,7 @@ private:
 	float* error2_odomx;
 	float* Kal_odomx;
 	float inverse_x[4]={};
-
+	float accelx_filt=0;
 	/*****************y-axis******************/
 	float delta_x_odomy=0, delta_v_vely=0;
 	float G_odomy[2*2]={ 1, T_odom,
@@ -72,6 +74,8 @@ private:
 	float* error2_odomy;
 	float* Kal_odomy;
 	float inverse_y[4]={};
+	float accely_filt=0;
+	float accelxy_filt_hz=10;
 };
 
 #endif /* INCLUDE_EKF_EKF_GNSS_H_ */

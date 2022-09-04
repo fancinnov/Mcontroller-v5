@@ -51,7 +51,7 @@ static bool rc_channels_sendback=false;
 static float accel_filt_hz=10;//HZ
 static float gyro_filt_hz=20;//HZ
 static float mag_filt_hz=5;//HZ
-static float baro_filt_hz=0.5;//HZ
+static float baro_filt_hz=2;//HZ
 static float accel_ef_filt_hz=10;//HZ
 static float uwb_pos_filt_hz=5;//HZ
 static float odom_pos_filt_hz=5;//HZ
@@ -82,7 +82,7 @@ static LowPassFilterVector2f _odom_vel_filter, _odom_pos_filter;
 parameter *param=new parameter();
 ap_t *ap=new ap_t();
 AHRS *ahrs=new AHRS(_dt);
-EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 0.000016, 0.000016);
+EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 1.0, 0.000016, 0.000016);
 EKF_Rangefinder *ekf_rangefinder=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
 EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
 EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 0.0016, 0.0016, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
@@ -573,6 +573,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							pos_control->get_pos_xy_p()(param->pos_xy_p.value);
 							pos_control->get_vel_xy_pid()(param->vel_xy_pid.value_p, param->vel_xy_pid.value_p, param->vel_xy_pid.value_i, param->vel_xy_pid.value_i, param->vel_xy_pid.value_d,
 									param->vel_xy_pid.value_d, param->vel_xy_pid.value_imax, param->vel_xy_pid.value_filt_hz, param->vel_xy_pid.value_filt_d_hz, _dt);
+							attitude->set_lean_angle_max(param->angle_max.value);
+							pos_control->set_lean_angle_max_d(param->angle_max.value);
 							send_mavlink_param_list(chan);
 						}else if(is_equal(cmd.param1,1.0f)){//ANGLE_ROLL_P
 							attitude->get_angle_roll_p().kP(cmd.param2);
@@ -791,6 +793,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							mavlink_send_buffer(chan, &msg_command_long);
 						}else if(is_equal(cmd.param1,18.0f)){
 							param->angle_max.value=cmd.param2;
+							attitude->set_lean_angle_max(param->angle_max.value);
+							pos_control->set_lean_angle_max_d(param->angle_max.value);
 							dataflash->set_param_float(param->angle_max.num, param->angle_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
 							command_long.param1=18.0f;
@@ -1349,6 +1353,16 @@ void rc_range_init(void){
 	rc_range_max[1]=(float)param->channel_range.channel[5];
 	rc_range_max[2]=(float)param->channel_range.channel[6];
 	rc_range_max[3]=(float)param->channel_range.channel[7];
+	for(uint8_t i=0;i<4;i++){
+		if(rc_range_min[i]<1000||rc_range_min[i]>1100){
+			rc_range_min[i]=1100;
+		}
+	}
+	for(uint8_t i=0;i<4;i++){
+		if(rc_range_max[i]<1900||rc_range_max[i]>2000){
+			rc_range_max[i]=1900;
+		}
+	}
 	rc_range_cal();
 }
 
@@ -1415,6 +1429,7 @@ void attitude_init(void){
 			param->rate_pitch_pid.value_d, param->rate_pitch_pid.value_imax, param->rate_pitch_pid.value_filt_hz, _dt);
 	attitude->get_rate_yaw_pid()(param->rate_yaw_pid.value_p, param->rate_yaw_pid.value_i,
 			param->rate_yaw_pid.value_d, param->rate_yaw_pid.value_imax, param->rate_yaw_pid.value_filt_hz, _dt);
+	attitude->set_lean_angle_max(param->angle_max.value);
 }
 
 void pos_init(void){
@@ -1427,6 +1442,7 @@ void pos_init(void){
 			param->vel_xy_pid.value_d, param->vel_xy_pid.value_imax, param->vel_xy_pid.value_filt_hz, param->vel_xy_pid.value_filt_d_hz, _dt);
 	pos_control->set_dt(_dt);
 	pos_control->init_xy_controller(true);
+	pos_control->set_lean_angle_max_d(param->angle_max.value);
 	sdlog->Logger_Read_Gnss();
 	rangefinder_state.alt_cm_filt.set_cutoff_frequency(100, rangefinder_filt_hz);//tfmini默认频率100hz
 }
@@ -1727,7 +1743,7 @@ void ahrs_update(void){
 	}
 
 	if(ahrs_stage_compass){
-		ahrs->update(USE_MAG, mag_corrected, get_mav_yaw);
+		ahrs->update(mag_corrected, get_mav_yaw);
 		//由ahrs的四元数推出旋转矩阵用于控制
 		ahrs->quaternion2.rotation_matrix(dcm_matrix);
 		dcm_matrix.normalize();
@@ -1754,8 +1770,10 @@ void ahrs_update(void){
 	}
 }
 
-static float baro_alt_filt=0,baro_alt_init=0;
+static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_correct=0,gnss_alt_last=0;
+static float gnss_alt_delta=0,baro_alt_delta=0;
 static uint16_t init_baro=0;
+static float K_gain=0.0f;
 void update_baro_alt(void){
 	if(init_baro<20){//前20点不要
 		init_baro++;
@@ -1774,33 +1792,27 @@ void update_baro_alt(void){
 		return;
 	}
 	if(!initial_baro){
-		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
+		_baro_alt_filter.set_cutoff_frequency(8, baro_filt_hz);
 		initial_baro=true;
 	}else{
 		baro_alt-=baro_alt_init;
 		if(get_gps_state()){
+			K_gain=constrain_float(gps_position->satellites_used/30, 0.0f, 0.8f);
+			gnss_alt_delta=(float)gnss_current_pos.alt-gnss_alt_last;
+			gnss_alt_last=(float)gnss_current_pos.alt;
 			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
 			float vel=vel_2d.length();
-			if(vel>5.0f){
-				baro_filt_hz=0.05;
-			}else if(vel>3.0f){
-				baro_filt_hz=0.1;
-			}else if(vel>2.0f){
-				baro_filt_hz=0.15;
-			}else if(vel>1.0f){
-				baro_filt_hz=0.3;
-			}else{
-				baro_filt_hz=0.5;
-			}
 			if(vel>2.0f&&abs(get_vel_z())<100.0f){
-				baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -25.0f, 25.0f);
+				baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -15.0f, 15.0f);
 			}
 		}else{
-			//TODO:add other sensor correct
-			baro_filt_hz=0.5;
+			K_gain=0.0f;
 		}
+		baro_alt_delta=baro_alt-baro_alt_last;
+		baro_alt_last=baro_alt;
+		baro_alt_correct+=((1-K_gain)*baro_alt_delta+K_gain*gnss_alt_delta);
 		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
-		baro_alt_filt = _baro_alt_filter.apply(baro_alt);
+		baro_alt_filt = _baro_alt_filter.apply(baro_alt_correct);
 		get_baro_alt_filt=true;
 	}
 }
@@ -2615,7 +2627,7 @@ void set_throttle_zero_flag(float throttle_control)
     // if not using throttle interlock and non-zero throttle and not E-stopped,
     // or using motor interlock and it's enabled, then motors are running,
     // and we are flying. Immediately set as non-zero
-    if (throttle_control > 0 && motors->get_interlock()) {
+    if (throttle_control > 0.01 && get_soft_armed()) {
         last_nonzero_throttle_ms = tnow_ms;
         ap->throttle_zero = false;
     } else if (tnow_ms - last_nonzero_throttle_ms <= THROTTLE_ZERO_DEBOUNCE_TIME_MS) {
@@ -2797,7 +2809,7 @@ void debug(void){
 //	usb_printf("speed:%f\n",param->auto_land_speed.value);
 //	usb_printf("z:%f\n",attitude->get_angle_roll_p().kP());
 //	usb_printf("gx:%f|gy:%f|gz:%f\n", gyro_offset.x, gyro_offset.y, gyro_offset.z);
-//	usb_printf("r:%f,p:%f,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",get_channel_roll(),get_channel_pitch(),get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
+//	usb_printf("r:%d,p:%d,y:%f,t:%f,5:%f,6:%f,7:%f,8:%f\n",mav_channels_in[2],mav_channels_in[3],get_channel_yaw(), get_channel_throttle(),get_channel_5(),get_channel_6(),get_channel_7(),get_channel_8());
 //	usb_printf("0:%f,1:%f,4:%f,5:%f\n",motors->get_thrust_rpyt_out(0),motors->get_thrust_rpyt_out(1),motors->get_thrust_rpyt_out(4), motors->get_thrust_rpyt_out(5));
 //	usb_printf("roll:%f,pitch:%f,yaw:%f,throttle:%f\n",motors->get_roll(),motors->get_pitch(),motors->get_yaw(), motors->get_throttle());
 //	usb_printf("yaw:%f,yaw_throttle:%f\n",yaw_deg,motors->get_yaw());

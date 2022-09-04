@@ -17,7 +17,6 @@
 #include "cmsis_os.h"
 #include "adc.h"
 #include "can.h"
-#include "crc.h"
 #include "dma.h"
 #include "fatfs.h"
 #include "i2c.h"
@@ -132,7 +131,6 @@ int main(void)
   MX_TIM10_Init();
   MX_TIM13_Init();
   MX_TIM14_Init();
-  MX_CRC_Init();
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_CAN2_Init();
@@ -146,15 +144,6 @@ int main(void)
   TxBuffer_comm2_buf=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm3_buf=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
   TxBuffer_comm4_buf=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));
-  __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);
-  __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
-  __HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
-  __HAL_UART_ENABLE_IT(&huart7, UART_IT_IDLE);
-  __HAL_UART_ENABLE_IT(&huart8, UART_IT_IDLE);
-  HAL_UART_Receive_DMA(&huart2,RxBuffer_comm1_DMA,URAT_DMA_Buffer_length);
-  HAL_UART_Receive_DMA(&huart3,RxBuffer_comm2_DMA,URAT_DMA_Buffer_length);
-  HAL_UART_Receive_DMA(&huart7,RxBuffer_comm3_DMA,URAT_DMA_Buffer_length);
-  HAL_UART_Receive_DMA(&huart8,RxBuffer_comm4_DMA,URAT_DMA_Buffer_length);
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3);
@@ -324,7 +313,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-
+  usb_printf("error\n");
   /* USER CODE END Error_Handler_Debug */
 }
 

@@ -107,7 +107,7 @@ void mode_poshold(void){
 			pos_control->set_xy_target(x_target, y_target);
 		}else{//定位模式(下挡位)
 			vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
-			vy_target_bf=get_channel_roll()*500;//最大速度500/s
+			vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
 			if(abs(vx_target_bf)<10.0f){
 				vx_target_bf=0.0f;
 			}
@@ -182,7 +182,7 @@ void mode_poshold(void){
 					ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
 					ned_dis_2d.x=ned_target_pos.x-get_pos_x();
 					ned_dis_2d.y=ned_target_pos.y-get_pos_y();
-					if(ned_dis_2d.length()<100){//距离目标点小于1m认为到达
+					if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
 						target_point++;
 					}else{
 						if(ned_dis_2d.y>=0){

@@ -27,6 +27,7 @@
 #include "usart.h"
 #include "adc.h"
 #include "spi.h"
+#include "can.h"
 #include "common/mavlink.h"
 #include "usbd_cdc_if.h"
 #include "define.h"
@@ -311,6 +312,18 @@ HAL_StatusTypeDef SPI_Transmit_IT(uint8_t *pData, uint16_t Size);
 HAL_StatusTypeDef SPI_Receive_IT(uint8_t *pData, uint16_t Size);
 HAL_StatusTypeDef SPI_TransmitReceive_IT(uint8_t *pTxData, uint8_t *pRxData, uint16_t Size);
 HAL_SPI_StateTypeDef SPI_GetState(void);
+
+//can驱动
+extern CAN_FilterTypeDef *canFilterConfig;
+extern CAN_TxHeaderTypeDef *canTxHeader;
+extern uint8_t *canTxData;
+CAN_RxHeaderTypeDef *get_canRxHeader_prt(uint8_t buffer_num);//buffer_num取值范围0~15
+uint8_t *get_canRxData_prt(uint8_t buffer_num);//buffer_num取值范围0~15
+void set_can_recieve_multifold(uint8_t num);//设置can总线多倍接收,开辟多个缓存区,用于can总线接收数据频率高于处理频率的情况,num取值范围1~16,即最高开辟16个缓存区
+void set_comm3_as_can(void);//调用该函数后, 串口3被配置为can接口, t3作为can tx, r3作为can rx, 配置的参数可以在Core/Src/can.c文件中修改
+uint32_t get_can_notification(void);//获取can累计接收到的消息包总数,每接收到一条消息包,该函数返回值自动加1;
+void can_send_data(void);//发送fdcan消息包;
+HAL_CAN_StateTypeDef get_can_state(void);//获取fdcan状态
 
 //IMU驱动
 void IMU_Init(void);

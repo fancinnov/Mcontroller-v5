@@ -303,7 +303,11 @@ void InitTask(void *argument)
   rbInit(&ringbuffer_comm4_send, TxBuffer_comm4, URAT_DMA_Buffer_length);
 
   usb_printf("\r\nSystem initializing ...\r\n");
-  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM);
+  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM|MLINK_ESP);
+  set_s1_baudrate(115200);
+  set_s2_baudrate(115200);
+  set_s3_baudrate(115200);
+  set_s4_baudrate(115200);
   FRAM_Init();
   update_dataflash();
   RC_Input_Init(RC_INPUT_SBUS);

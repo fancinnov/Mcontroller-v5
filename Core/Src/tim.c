@@ -606,7 +606,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
-    PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+    PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_HSE_DIV24;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
       Error_Handler();

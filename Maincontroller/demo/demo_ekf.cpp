@@ -7,7 +7,7 @@
 #include"maincontroller.h"
 
 //Q表示观测数据的方差；R1表示预测数据的位置的方差；R2表示预测数据速度的方差
-EKF_Baro *ekf_baro_1=new EKF_Baro(_dt, 0.0016, 0.000016, 0.000016);
+EKF_Baro *ekf_baro_1=new EKF_Baro(_dt, 0.0016, 1.0, 0.000016, 0.000016);
 
 //Q表示观测数据的方差；R1表示预测数据的位置的方差；R2表示预测数据速度的方差
 EKF_Rangefinder *ekf_rangefinder_1=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
