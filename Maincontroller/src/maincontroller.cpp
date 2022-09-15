@@ -321,7 +321,7 @@ void get_tfmini_data(uint8_t buf)
 			}else if(data_num==6&&chk_cal==buf){
 				cordist=tfmini_data[0]|(tfmini_data[1]<<8);//cm
 				strength=tfmini_data[2]|(tfmini_data[3]<<8);
-				if(cordist>3&&cordist<=1200){
+				if(cordist>3&&cordist<=800){
 					Vector3f pos_offset=dcm_matrix*tfmini_offset;
 					if(!rangefinder_state.alt_healthy){
 						rangefinder_state.alt_cm_filt.reset((float)cordist);//重置滤波器
@@ -1771,9 +1771,10 @@ void ahrs_update(void){
 }
 
 static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_correct=0,gnss_alt_last=0;
-static float gnss_alt_delta=0,baro_alt_delta=0;
+static float rf_alt_delta=0, rf_alt_last=0, gnss_alt_delta=0,baro_alt_delta=0,vel_2d=0;
 static uint16_t init_baro=0;
 static float K_gain=0.0f;
+static bool rf_correct=false;
 void update_baro_alt(void){
 	if(init_baro<20){//前20点不要
 		init_baro++;
@@ -1792,26 +1793,55 @@ void update_baro_alt(void){
 		return;
 	}
 	if(!initial_baro){
-		_baro_alt_filter.set_cutoff_frequency(8, baro_filt_hz);
+		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
 		initial_baro=true;
 	}else{
 		baro_alt-=baro_alt_init;
 		if(get_gps_state()){
-			K_gain=constrain_float(gps_position->satellites_used/30, 0.0f, 0.8f);
-			gnss_alt_delta=(float)gnss_current_pos.alt-gnss_alt_last;
-			gnss_alt_last=(float)gnss_current_pos.alt;
-			Vector2f vel_2d(get_vel_x()*0.01,get_vel_y()*0.01);// cm/s->m/s
-			float vel=vel_2d.length();
-			if(vel>2.0f&&abs(get_vel_z())<100.0f){
-				baro_alt=baro_alt_filt+constrain_float((baro_alt-baro_alt_filt), -15.0f, 15.0f);
+			if(is_equal(K_gain, 0.0f)){
+				K_gain=constrain_float((float)gps_position->satellites_used/30, 0.0f, 1.0f);
+				gnss_alt_last=ned_current_pos.z;
+				gnss_alt_delta=0;
+			}else{
+				K_gain=constrain_float((float)gps_position->satellites_used/30, 0.0f, 1.0f);
+				gnss_alt_delta=ned_current_pos.z-gnss_alt_last;
+				gnss_alt_last=ned_current_pos.z;
 			}
+			vel_2d=sqrtf(sq(get_vel_x(),get_vel_y()));
 		}else{
 			K_gain=0.0f;
+			vel_2d=0.0f;
+		}
+		if(rangefinder_state.alt_healthy){
+			if(rf_correct){
+				rf_alt_delta=rangefinder_state.alt_cm-rf_alt_last;
+				rf_alt_last=rangefinder_state.alt_cm;
+			}else{
+				rf_alt_delta=0.0f;
+				rf_alt_last=rangefinder_state.alt_cm;
+			}
+			if(abs(rf_alt_delta)<15.0f&&!is_equal(rf_alt_delta,0.0f)){
+				rf_correct=true;
+			}else{
+				rf_correct=false;
+			}
+		}else{
+			rf_correct=false;
 		}
 		baro_alt_delta=baro_alt-baro_alt_last;
 		baro_alt_last=baro_alt;
-		baro_alt_correct+=((1-K_gain)*baro_alt_delta+K_gain*gnss_alt_delta);
-		_baro_alt_filter.set_cutoff_frequency(10, baro_filt_hz);
+		if(rf_correct&&baro_alt_delta*rf_alt_delta<0){//防止水平飞行掉高和大风扰动
+			baro_alt_delta=rf_alt_delta;
+		}else if(baro_alt_delta*gnss_alt_delta<0&&get_gps_state()&&K_gain>0.5f){//防止水平飞行掉高和大风扰动
+			baro_alt_delta=gnss_alt_delta;
+		}else{
+			if((abs(baro_alt_delta)>15||vel_2d>100)&&abs(get_vel_z())<100.0f){
+				baro_alt_delta=constrain_float(baro_alt_delta, -15.0f, 15.0f);
+			}else{
+				baro_alt_delta=baro_alt-baro_alt_correct;
+			}
+		}
+		baro_alt_correct+=baro_alt_delta;
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt_correct);
 		get_baro_alt_filt=true;
 	}
@@ -1941,6 +1971,18 @@ float get_vel_y(void){//cm/s
 
 float get_vel_z(void){//cm/s
 	return ekf_baro->vel_z;
+}
+
+void sdled_update(void){
+	if(get_soft_armed()){
+		FMU_LED3_Control(true);
+	}else{
+		FMU_LED3_Control(false);
+	}
+	osDelay(200);
+	if(sdlog->m_Logger_Status!=SDLog::Logger_Record){
+		FMU_LED3_Control(false);
+	}
 }
 
 // get_pilot_desired_heading - transform pilot's yaw input into a
@@ -2125,7 +2167,11 @@ float get_surface_tracking_climb_rate(float target_rate, float current_alt_targe
 
     // reset target altitude if this controller has just been engaged
     if (now - last_call_ms > RANGEFINDER_TIMEOUT_MS) {
-        target_rangefinder_alt = rangefinder_state.alt_cm + current_alt_target - current_alt;
+    	target_rangefinder_alt = rangefinder_state.alt_cm;
+		float alt_delta=current_alt_target - current_alt;
+		if(alt_delta>0){
+			target_rangefinder_alt+=alt_delta;
+		}
     }
     last_call_ms = now;
 
@@ -2381,7 +2427,6 @@ bool arm_motors(void)
     in_arm_motors = false;
     takeoff_time=HAL_GetTick();
     Buzzer_set_ring_type(BUZZER_ARMED);
-    FMU_LED3_Control(true);
 
     // return success
     return true;
@@ -2415,7 +2460,6 @@ void disarm_motors(void)
     sdlog->Logger_Disable();
     takeoff_time=0;
     Buzzer_set_ring_type(BUZZER_DISARM);
-    FMU_LED3_Control(false);
 }
 
 //解锁电机
@@ -2683,8 +2727,8 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_ACCEL_EARTH_FRAME and VIB
 			"gyrox_t", "gyroy_t", "gyroz_t", "efx", "efy", "efz", "vib_vl", "vib_ag");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_Z
-			"barofilt", "alt_t", "pos_z", "vel_z_t", "vel_z", "rf_alt", "rf_alt_t");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_Z
+			"barofilt", "alt_t", "pos_z", "vel_z_t", "vel_z", "rf_alt", "rf_alt_t", "rtk_alt", "rtk_velz");
 	osDelay(1);
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_POS_XY
 			"odom_x", "pos_x", "vel_x", "odom_y", "pos_y", "vel_y");
@@ -2729,8 +2773,8 @@ void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_ACCEL_EARTH_FRAME and VIB
 			attitude->rate_bf_targets().x, attitude->rate_bf_targets().y, attitude->rate_bf_targets().z, get_accel_ef().x, get_accel_ef().y, get_accel_ef().z, get_vib_value(), get_vib_angle_z());
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_Z
-			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target());
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_Z
+			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target(), get_ned_pos_z(), get_ned_vel_z());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_XY
 			get_odom_x(), get_pos_x(), get_vel_x(), get_odom_y(), get_pos_y(), get_vel_y());

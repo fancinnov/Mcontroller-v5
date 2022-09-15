@@ -6,11 +6,13 @@
  */
 #include "maincontroller.h"
 
-static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f,vx_target_bf=0.0f,vy_target_bf=0.0f,vel_lat_cms=0.0f,vel_lon_cms=0.0f;
+static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f,vx_target_bf=0.0f,vy_target_bf=0.0f;
+static Vector2f vel_latlon_t,vel_latlon_c,vel_latlon_d;
 static uint16_t target_point=0;
 static Location gnss_target_pos;
 static Vector3f ned_target_pos;
 static Vector2f ned_dis_2d;
+const float vmax=500.0f, amax=100.0f;
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -34,8 +36,9 @@ void mode_poshold(void){
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
-	pos_control->set_speed_xy(500);
-	pos_control->set_accel_xy(100);
+	pos_control->set_speed_xy(vmax);
+	pos_control->set_accel_xy(amax);
+	float dv=vmax*_dt;//0到最大速度用1s
 
 	// get pilot desired lean angles
 	float target_roll, target_pitch;
@@ -106,17 +109,23 @@ void mode_poshold(void){
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else{//定位模式(下挡位)
-			vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
-			vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
+			vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
+			vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
 			if(abs(vx_target_bf)<10.0f){
 				vx_target_bf=0.0f;
 			}
 			if(abs(vy_target_bf)<10.0f){
 				vy_target_bf=0.0f;
 			}
-			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
+			vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
+			vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
+			vel_latlon_d=vel_latlon_t-vel_latlon_c;
+			if(vel_latlon_d.length()>dv){
+				vel_latlon_c+=vel_latlon_d.normalized()*dv;
+			}else{
+				vel_latlon_c=vel_latlon_t;
+			}
+			pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}
@@ -160,17 +169,23 @@ void mode_poshold(void){
 			y_target=get_ned_pos_y();
 			pos_control->set_xy_target(x_target, y_target);
 		}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-			vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
-			vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
+			vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
+			vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
 			if(abs(vx_target_bf)<10.0f){
 				vx_target_bf=0.0f;
 			}
 			if(abs(vy_target_bf)<10.0f){
 				vy_target_bf=0.0f;
 			}
-			vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-			vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-			pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
+			vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
+			vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
+			vel_latlon_d=vel_latlon_t-vel_latlon_c;
+			if(vel_latlon_d.length()>dv){
+				vel_latlon_c+=vel_latlon_d.normalized()*dv;
+			}else{
+				vel_latlon_c=vel_latlon_t;
+			}
+			pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
@@ -197,17 +212,23 @@ void mode_poshold(void){
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{
-				vx_target_bf=-get_channel_pitch()*500;//最大速度500cm/s
-				vy_target_bf=get_channel_roll()*500;//最大速度500cm/s
+				vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
+				vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
 				if(abs(vx_target_bf)<10.0f){
 					vx_target_bf=0.0f;
 				}
 				if(abs(vy_target_bf)<10.0f){
 					vy_target_bf=0.0f;
 				}
-				vel_lat_cms=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-				vel_lon_cms=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-				pos_control->set_desired_velocity_xy(vel_lat_cms,vel_lon_cms);
+				vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
+				vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
+				vel_latlon_d=vel_latlon_t-vel_latlon_c;
+				if(vel_latlon_d.length()>dv){
+					vel_latlon_c+=vel_latlon_d.normalized()*dv;
+				}else{
+					vel_latlon_c=vel_latlon_t;
+				}
+				pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				target_yaw+=target_yaw_rate*_dt;
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);

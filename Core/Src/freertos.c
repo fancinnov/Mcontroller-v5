@@ -328,7 +328,6 @@ void InitTask(void *argument)
 	  Buzzer_set_ring_type(BUZZER_ERROR);
 	  usb_printf("System initialized failed!\r\n");
   }
-  osDelay(1000);
   initialed_task=true;//当初始化未完成时，只运行buzzer task
   osThreadTerminate(initTaskHandle);//终结线程，并回收内存
   /* USER CODE END InitTask */
@@ -379,6 +378,7 @@ void HeartBeatTask(void *argument)
 	  send_mavlink_heartbeat_data();
 	  osDelay(100);
 	  FMU_LED1_Control(false);
+	  sdled_update();
 	  vTaskDelayUntil(&PreviousWakeTime, TimeIncrement);
   }
   /* USER CODE END HeartBeatTask */
