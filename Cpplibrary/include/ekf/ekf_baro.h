@@ -53,5 +53,6 @@ private:
 	float* Kal;
 	float accelz_filt_hz=10;//Hz 震动对于速度预测影响非常大 所以要把截止频率设低一些
 	float accelz_filt=0;
+	DerivativeFilterFloat_Size7 _climb_rate_filter;
 };
 #endif /* INCLUDE_EKF_EKF_BARO_H_ */

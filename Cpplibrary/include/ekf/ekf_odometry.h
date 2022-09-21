@@ -62,7 +62,7 @@ private:
 	float* error1_odomy;
 	float* error2_odomy;
 	float* Kal_odomy;
-	float accel_filt_hz=2;//Hz 震动对于速度预测影响非常大 所以要把截止频率设低一些
+	float accel_filt_hz=10;//Hz 震动对于速度预测影响非常大 所以要把截止频率设低一些
 	float accelx_filt=0;
 	float accely_filt=0;
 };

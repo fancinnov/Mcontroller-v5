@@ -13,6 +13,7 @@
 #include "math/math_inc.h"
 #include "filter/LowPassFilter.h"
 #include "filter/LowPassFilter2p.h"
+#include "filter/DerivativeFilter.h"
 
 /* *************************************************
  * ****************Dev code begin*******************/
@@ -315,14 +316,15 @@ typedef enum {// if add new type, must add to the end of the list
 	UINT16_CHANNLE_8
 }dataflash_type;
 
-struct {
+typedef struct {
 	bool enabled=false;
 	bool alt_healthy=false; // true if we can trust the altitude from the rangefinder
 	float alt_cm=0.0f;     // tilt compensated altitude (in cm) from rangefinder
 	uint32_t last_healthy_ms=0;
 	LowPassFilterFloat alt_cm_filt; // altitude filter
 	int8_t glitch_count;
-} rangefinder_state;
+} Rangefinder_state;
+extern Rangefinder_state rangefinder_state;
 
 typedef enum{
 	none=0,

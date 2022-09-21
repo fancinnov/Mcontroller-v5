@@ -53,7 +53,7 @@ static float gyro_filt_hz=20;//HZ
 static float mag_filt_hz=5;//HZ
 static float baro_filt_hz=2;//HZ
 static float accel_ef_filt_hz=10;//HZ
-static float uwb_pos_filt_hz=5;//HZ
+static float uwb_pos_filt_hz=2;//HZ
 static float odom_pos_filt_hz=5;//HZ
 static float odom_vel_filt_hz=5;//HZ
 static float rangefinder_filt_hz=5;//HZ
@@ -84,7 +84,7 @@ ap_t *ap=new ap_t();
 AHRS *ahrs=new AHRS(_dt);
 EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 1.0, 0.000016, 0.000016);
 EKF_Rangefinder *ekf_rangefinder=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
-EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
+EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.000016, 0.0004, 0.0004);
 EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 0.0016, 0.0016, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
 Motors *motors=new Motors(1/_dt);
 Attitude_Multi *attitude=new Attitude_Multi(*motors, gyro_filt, _dt);
@@ -94,6 +94,7 @@ AccelCalibrator *accelCalibrator=new AccelCalibrator();
 DataFlash *dataflash=new DataFlash();
 SDLog *sdlog=new SDLog();
 UWB *uwb=new UWB();
+Rangefinder_state rangefinder_state;
 
 float ahrs_pitch_rad(void){return pitch_rad;}
 float ahrs_roll_rad(void){return roll_rad;}
@@ -1771,7 +1772,7 @@ void ahrs_update(void){
 }
 
 static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_correct=0,gnss_alt_last=0;
-static float rf_alt_delta=0, rf_alt_last=0, gnss_alt_delta=0,baro_alt_delta=0,vel_2d=0;
+static float rf_alt_delta=0, rf_alt_last=0, gnss_alt_delta=0,baro_alt_delta=0,vel_2d=0,accel_2d=0;
 static uint16_t init_baro=0;
 static float K_gain=0.0f;
 static bool rf_correct=false;
@@ -1830,15 +1831,17 @@ void update_baro_alt(void){
 		}
 		baro_alt_delta=baro_alt-baro_alt_last;
 		baro_alt_last=baro_alt;
-		if(rf_correct&&baro_alt_delta*rf_alt_delta<0){//防止水平飞行掉高和大风扰动
+		if(rf_correct&&(baro_alt_delta*rf_alt_delta<0||abs(baro_alt_delta)>15.0f)){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=rf_alt_delta;
 		}else if(baro_alt_delta*gnss_alt_delta<0&&get_gps_state()&&K_gain>0.5f){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=gnss_alt_delta;
 		}else{
-			if((abs(baro_alt_delta)>15||vel_2d>100)&&abs(get_vel_z())<100.0f){
-				baro_alt_delta=constrain_float(baro_alt_delta, -15.0f, 15.0f);
-			}else{
+			accel_2d=sqrtf(sq(get_accel_ef().x,get_accel_ef().y));
+			if(vel_2d<100&&accel_2d<100){
 				baro_alt_delta=baro_alt-baro_alt_correct;
+			}
+			if(abs(get_vel_z())<100.0f){
+				baro_alt_delta=constrain_float(baro_alt_delta, -15.0f, 15.0f);
 			}
 		}
 		baro_alt_correct+=baro_alt_delta;
@@ -1913,13 +1916,13 @@ void uwb_position_update(void){
 		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
 		odom_3d.z=uwb->uwb_position.z;
 		odom_3d = _uwb_pos_filter.apply(odom_3d);
-		if(odom_3d.z>30&&use_uwb_pos_z){
-			rangefinder_state.alt_healthy=true;
-			rangefinder_state.alt_cm=odom_3d.z;
-			rangefinder_state.last_healthy_ms=HAL_GetTick();
-		}else{
-			rangefinder_state.alt_healthy=false;
-		}
+//		if(odom_3d.z>30&&use_uwb_pos_z){
+//			rangefinder_state.alt_healthy=true;
+//			rangefinder_state.alt_cm=odom_3d.z;
+//			rangefinder_state.last_healthy_ms=HAL_GetTick();
+//		}else{
+//			rangefinder_state.alt_healthy=false;
+//		}
 		get_odom_xy=true;
 	}
 }
@@ -1938,8 +1941,8 @@ void ekf_odom_xy(void){
 		_odom_pos_filter.set_cutoff_frequency(400, odom_pos_filt_hz);
 	}
 	ekf_odometry->update(get_odom_xy,odom_3d.x,odom_3d.y);
-	odom_vel_xy_filt=_odom_vel_filter.apply(Vector2f(ekf_odometry->vel_x,ekf_odometry->vel_y));
-	odom_pos_xy_filt=_odom_pos_filter.apply(Vector2f(ekf_odometry->pos_x,ekf_odometry->pos_y));
+//	odom_vel_xy_filt=_odom_vel_filter.apply(Vector2f(ekf_odometry->vel_x,ekf_odometry->vel_y));
+//	odom_pos_xy_filt=_odom_pos_filter.apply(Vector2f(ekf_odometry->pos_x,ekf_odometry->pos_y));
 }
 
 void ekf_gnss_xy(void){
@@ -1950,11 +1953,11 @@ void ekf_gnss_xy(void){
 }
 
 float get_pos_x(void){//cm
-	return ekf_gnss->pos_x;
+	return ekf_odometry->pos_x;
 }
 
 float get_pos_y(void){//cm
-	return ekf_gnss->pos_y;
+	return ekf_odometry->pos_y;
 }
 
 float get_pos_z(void){//cm
@@ -1962,11 +1965,11 @@ float get_pos_z(void){//cm
 }
 
 float get_vel_x(void){//cm/s
-	return ekf_gnss->vel_x;
+	return ekf_odometry->vel_x;
 }
 
 float get_vel_y(void){//cm/s
-	return ekf_gnss->vel_y;
+	return ekf_odometry->vel_y;
 }
 
 float get_vel_z(void){//cm/s
