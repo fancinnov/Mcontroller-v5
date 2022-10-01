@@ -12,7 +12,7 @@ static uint16_t target_point=0;
 static Location gnss_target_pos;
 static Vector3f ned_target_pos;
 static Vector2f ned_dis_2d;
-const float vmax=500.0f, amax=100.0f;
+const float vmax=500.0f, amax=120.0f;
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -38,7 +38,7 @@ void mode_poshold(void){
 	pos_control->set_accel_z(param->pilot_accel_z.value);
 	pos_control->set_speed_xy(vmax);
 	pos_control->set_accel_xy(amax);
-	float dv=vmax*_dt;//0到最大速度用1s
+	float dv=amax*_dt;//最大加速度amax
 
 	// get pilot desired lean angles
 	float target_roll, target_pitch;

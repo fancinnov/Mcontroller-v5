@@ -259,6 +259,7 @@ bool mode_mecanum_init(void);
 void mode_mecanum(void);
 bool mode_perch_init(void);
 void mode_perch(void);
+void mode_ugv_a(void);
 
 // Documentation of GLobals:
 typedef union {

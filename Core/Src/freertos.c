@@ -412,8 +412,8 @@ void Loop400hzTask(void *argument)
 	  MPU_CS_H;
 	  /***Do not change code above and change or add new code below***/
 //	  ekf_rf_alt();
-//	  ekf_odom_xy();
-	  ekf_gnss_xy();
+	  ekf_odom_xy();
+//	  ekf_gnss_xy();
 	  mode_update();
   }
   /* USER CODE END Loop400hzTask */

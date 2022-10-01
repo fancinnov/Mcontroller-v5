@@ -149,6 +149,7 @@ void mode_update(void){
 		break;
 	case MODE_UGV_A:
 		//无人车遥控直通update()
+		mode_ugv_a();
 		break;
 	case MODE_UGV_V:
 		//无人车定速模式update()

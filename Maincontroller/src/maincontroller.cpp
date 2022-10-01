@@ -48,7 +48,7 @@ static bool mag_corrected=false, mag_correcting=false;
 static bool use_uwb_pos_z=false;
 static bool rc_channels_sendback=false;
 
-static float accel_filt_hz=10;//HZ
+static float accel_filt_hz=20;//HZ
 static float gyro_filt_hz=20;//HZ
 static float mag_filt_hz=5;//HZ
 static float baro_filt_hz=2;//HZ
@@ -56,7 +56,7 @@ static float accel_ef_filt_hz=10;//HZ
 static float uwb_pos_filt_hz=2;//HZ
 static float odom_pos_filt_hz=5;//HZ
 static float odom_vel_filt_hz=5;//HZ
-static float rangefinder_filt_hz=5;//HZ
+static float rangefinder_filt_hz=20;//HZ
 static float pitch_rad=0 , roll_rad=0 , yaw_rad=0;
 static float pitch_deg=0 , roll_deg=0 , yaw_deg=0;
 static float cos_roll=0, cos_pitch=0, cos_yaw=0, sin_roll=0, sin_pitch=0, sin_yaw=0;
@@ -116,7 +116,7 @@ const Vector3f& get_accel_filt(void){return accel_filt;}		//滤波后的三轴�
 const Vector3f& get_gyro_filt(void){return gyro_filt;}			//滤波后的三轴机体角速度
 const Vector3f& get_mag_filt(void){return mag_filt;}			//滤波后的三轴磁场强度
 
-const Vector3f& get_accel_ef(void){								//地球坐标系下的三轴加速度
+const Vector3f& get_accel_ef(void){								//地球坐标系下的三轴加速度m/ss
 	return accel_ef;
 }
 
@@ -1747,7 +1747,6 @@ void ahrs_update(void){
 		ahrs->update(mag_corrected, get_mav_yaw);
 		//由ahrs的四元数推出旋转矩阵用于控制
 		ahrs->quaternion2.rotation_matrix(dcm_matrix);
-		dcm_matrix.normalize();
 		attitude->set_rotation_body_to_ned(dcm_matrix);
 		gyro_ef=dcm_matrix*gyro_filt;
 		accel_ef=dcm_matrix*accel_filt;
@@ -1807,6 +1806,9 @@ void update_baro_alt(void){
 				K_gain=constrain_float((float)gps_position->satellites_used/30, 0.0f, 1.0f);
 				gnss_alt_delta=ned_current_pos.z-gnss_alt_last;
 				gnss_alt_last=ned_current_pos.z;
+				if(is_equal(gnss_alt_delta, 0.0f)){
+					K_gain=0.0f;
+				}
 			}
 			vel_2d=sqrtf(sq(get_vel_x(),get_vel_y()));
 		}else{
@@ -1821,7 +1823,7 @@ void update_baro_alt(void){
 				rf_alt_delta=0.0f;
 				rf_alt_last=rangefinder_state.alt_cm;
 			}
-			if(abs(rf_alt_delta)<15.0f&&!is_equal(rf_alt_delta,0.0f)){
+			if(abs(rf_alt_delta)<100.0f&&!is_equal(rf_alt_delta,0.0f)){
 				rf_correct=true;
 			}else{
 				rf_correct=false;
@@ -1831,13 +1833,13 @@ void update_baro_alt(void){
 		}
 		baro_alt_delta=baro_alt-baro_alt_last;
 		baro_alt_last=baro_alt;
-		if(rf_correct&&(baro_alt_delta*rf_alt_delta<0||abs(baro_alt_delta)>15.0f)){//防止水平飞行掉高和大风扰动
+		accel_2d=sqrtf(sq(get_accel_ef().x,get_accel_ef().y));
+		if(rf_correct&&(baro_alt_delta*rf_alt_delta<0||abs(baro_alt_delta)>15.0f||accel_2d>1.0f)){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=rf_alt_delta;
-		}else if(baro_alt_delta*gnss_alt_delta<0&&get_gps_state()&&K_gain>0.5f){//防止水平飞行掉高和大风扰动
+		}else if(K_gain>0.5f&&(abs(baro_alt_delta)>15.0f||accel_2d>1.0f)&&abs(gnss_alt_delta)<100.0f){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=gnss_alt_delta;
 		}else{
-			accel_2d=sqrtf(sq(get_accel_ef().x,get_accel_ef().y));
-			if(vel_2d<100&&accel_2d<100){
+			if(vel_2d<100&&accel_2d<1.0f){
 				baro_alt_delta=baro_alt-baro_alt_correct;
 			}
 			if(abs(get_vel_z())<100.0f){
@@ -2721,8 +2723,8 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_SENSOR
 			"t_ms", "accx", "accy", "accz", "gyrox", "gyroy", "gyroz");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_SENSOR
-			"magx", "magy", "magz", "baro", "voltage", "current");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_SENSOR
+			"magx", "magy", "magz", "baro", "voltage", "current", "sat_num");
 	osDelay(1);
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_EULER
 			"pitchr", "rollr", "yawr", "pitchd", "rolld", "yawd");
@@ -2733,11 +2735,11 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_Z
 			"barofilt", "alt_t", "pos_z", "vel_z_t", "vel_z", "rf_alt", "rf_alt_t", "rtk_alt", "rtk_velz");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_POS_XY
-			"odom_x", "pos_x", "vel_x", "odom_y", "pos_y", "vel_y");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_XY
+			"vt_z", "odom_x", "pos_x", "vel_x", "odom_y", "pos_y", "vel_y");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s ",//LOG_VEL_PID_XY
-			"v_p_x", "v_i_x", "v_d_x", "v_p_y", "v_i_y", "v_d_y");
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_VEL_PID_XYZ
+			"v_p_x", "v_i_x", "v_d_x", "v_p_y", "v_i_y", "v_d_y", "a_p_z", "a_i_z", "a_d_z");
 	osDelay(1);
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_RCIN
 			"roll", "pitch", "yaw", "thr", "ch5", "ch6", "ch7", "ch8");
@@ -2767,8 +2769,8 @@ void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8ld %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_SENSOR
 			HAL_GetTick(), get_accel_correct().x, get_accel_correct().y, get_accel_correct().z,	get_gyro_correct().x, get_gyro_correct().y, get_gyro_correct().z);
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_SENSOR
-			get_mag_correct().x, get_mag_correct().y, get_mag_correct().z, spl06_data.baro_alt, get_batt_volt(), get_batt_current());
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8d ",//LOG_SENSOR
+			get_mag_correct().x, get_mag_correct().y, get_mag_correct().z, spl06_data.baro_alt, get_batt_volt(), get_batt_current(), gps_position->satellites_used);
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_EULER
 			ahrs_pitch_rad(), ahrs_roll_rad(), ahrs_yaw_rad(), ahrs_pitch_deg(), ahrs_roll_deg(), ahrs_yaw_deg());
@@ -2779,11 +2781,13 @@ void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_Z
 			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target(), get_ned_pos_z(), get_ned_vel_z());
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_XY
-			get_odom_x(), get_pos_x(), get_vel_x(), get_odom_y(), get_pos_y(), get_vel_y());
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_XY
+			ekf_baro->get_vt(), get_odom_x(), get_pos_x(), get_vel_x(), get_odom_y(), get_pos_y(), get_vel_y());
 	osDelay(1);
-	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_VEL_PID_XY
-			pos_control->get_vel_xy_pid().get_p().x, pos_control->get_vel_xy_pid().get_integrator().x, pos_control->get_vel_xy_pid().get_d().x, pos_control->get_vel_xy_pid().get_p().y, pos_control->get_vel_xy_pid().get_integrator().y, pos_control->get_vel_xy_pid().get_d().y);
+	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_VEL_PID_XY
+			pos_control->get_vel_xy_pid().get_p().x, pos_control->get_vel_xy_pid().get_integrator().x, pos_control->get_vel_xy_pid().get_d().x,
+			pos_control->get_vel_xy_pid().get_p().y, pos_control->get_vel_xy_pid().get_integrator().y, pos_control->get_vel_xy_pid().get_d().y,
+			pos_control->get_accel_z_pid().get_p(), pos_control->get_accel_z_pid().get_integrator(), pos_control->get_accel_z_pid().get_d());
 	osDelay(1);
 	sdlog->Logger_Write("%8d %8d %8d %8d %8d %8d %8d %8d ",//LOG_RCIN
 			input_channel_roll(), input_channel_pitch(), input_channel_yaw(), input_channel_throttle(), input_channel_5(), input_channel_6(), input_channel_7(), input_channel_8());
