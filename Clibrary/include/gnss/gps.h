@@ -34,6 +34,13 @@ extern "C" {
 		UM482        ///< UM482模组
 	}GnssType;
 
+	typedef enum {
+		gnss_comm1 = 0,  //串口1
+		gnss_comm2,		//串口2
+		gnss_comm3,		//串口3
+		gnss_comm4		//串口4
+	}GnssComm;
+
 	typedef struct
 	{
 		uint64_t timestamp; // required for logger
@@ -109,7 +116,8 @@ extern "C" {
 #define SAT_INFO_MAX_SATELLITES 20
 
 	extern vehicle_gps_position_s *gps_position;
-	bool GPS_Init(GnssType type);
+	extern GnssComm gnss_comm;
+	bool GPS_Init(GnssType type, GnssComm comm);// type：GNSS模组类型; comm：GNSS接在哪一个串口上
 	void GPS_Baud_Reset(uint32_t baud);
 	void get_gps_data(uint8_t buf);
 	bool get_gps_state(void);

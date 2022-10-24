@@ -24,8 +24,8 @@
 
 #define PWM_ESC_MIN 1000	// 脉宽 1000us
 #define PWM_ESC_MAX 2000	// 脉宽 2000us
-#define PWM_ESC_SPIN_ARM 1050
-#define PWM_ESC_SPIN_MIN 1050
+#define PWM_ESC_SPIN_ARM 1100
+#define PWM_ESC_SPIN_MIN 1100
 #define PWM_ESC_SPIN_MAX 1950
 
 #define PWM_BRUSH_MIN 0		// 脉宽 0us
@@ -48,17 +48,31 @@
 #define RC_INPUT_RANGE 	1000.0f // 脉宽 1000us
 
 //串口模式
-#define COMM_MASK 	0x0F //串口模式掩码
 #define DEV_COMM 	0x01 //自定义模式
 #define MAV_COMM  	0x02 //Mavlink模式
 #define GPS_COMM  	0x03 //GPS模式
 #define TFMINI_COMM 0X04 //TFmini激光测距仪
+#define LC302_COMM 0X05 //LC302光流
 
-//WIFI类型
-#define MLINK_MASK  0xF0 //wifi类型掩码
-#define MLINK_NONE  0x00 //不连接wifi模组
-#define MLINK_VIDEO 0x10 //wifi图传模组
-#define MLINK_ESP	0x20 //wifi数传模组
+/***************usb+串口配置****************
+ * *************COMM_0:USB口***************
+ * *************COMM_1:Serial串口1**********
+ * *************COMM_2:Serial串口2**********
+ * *************COMM_3:Serial串口3**********
+ * *************COMM_4:Serial串口4**********
+ * @param:
+ * COMM_0~COMM_4可以配置为下列可选参数,参数及其含义如下：
+ * (1)DEV_COMM 		自定义模式
+ * (2)MAV_COMM  	Mavlink模式
+ * (3)GPS_COMM  	GPS模式
+ * (4)TFMINI_COMM  	TFmini激光测距仪
+ * (5)LC302_COMM	LC302光流模块
+ * **************************************/
+#define COMM_0 MAV_COMM
+#define COMM_1 GPS_COMM
+#define COMM_2 MAV_COMM
+#define COMM_3 TFMINI_COMM
+#define COMM_4 MAV_COMM
 
 //配置LED
 #define FMU_LED_CONTROLL_ENABLE 1 // if use system default led control, set 1; if you want to control led by yourself, set 0;
@@ -71,6 +85,12 @@
 
 //配置UWB
 #define USE_UWB 1 // if use uwb, set 1; if don't use uwb, set 0;
+
+//配置光流
+#define USE_FLOW 1 // if use optical flow, set 1; if don't use optical flow, set 0;
+
+//配置里程计
+#define USE_ODOMETRY 0 // if use odometry, set 1; if don't use odometry, set 0;
 
 //配置flash
 #define USE_FRAM 2 //保持默认值,请勿更改
@@ -90,5 +110,8 @@
 	#define ADDR_FLASH_DATA   ((uint32_t)0x081E0000) /* bank2, Sector23: 128KB | 0x081E0000 - 0x081FFFFF, the beginning of the real data package */
 	#define DATA_FLASH_LENGTH ((uint32_t)0x00000020) /* each data package takes 32 bytes */
 #endif
+
+#define VERSION_HARDWARE 573
+#define VERSION_FIRMWARE 2022100501
 
 #endif /* INCLUDE_CONFIG_H_ */

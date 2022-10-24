@@ -38,9 +38,8 @@
 #define AP_MOTORS_THST_HOVER_TC         10.0f   // time constant used to update estimated hover throttle, 0 ~ 1
 #define AP_MOTORS_THST_HOVER_MIN        0.2f  // minimum possible hover throttle
 #define AP_MOTORS_THST_HOVER_MAX        0.7f // maximum possible hover throttle
-#define AP_MOTORS_SPIN_MIN_DEFAULT      0.1f   // throttle out ratio which produces the minimum thrust.  (i.e. 0 ~ 1 ) of the full throttle range
-#define AP_MOTORS_SPIN_MAX_DEFAULT      0.9f   // throttle out ratio which produces the maximum thrust.  (i.e. 0 ~ 1 ) of the full throttle range
-#define AP_MOTORS_SPIN_ARM_DEFAULT      0.1f   // throttle out ratio which produces the armed spin rate.  (i.e. 0 ~ 1 ) of the full throttle range
+#define AP_MOTORS_SPIN_MIN_DEFAULT      0.0f   // throttle out ratio which produces the minimum thrust.  (i.e. 0 ~ 1 ) of the full throttle range
+#define AP_MOTORS_SPIN_MAX_DEFAULT      1.0f   // throttle out ratio which produces the maximum thrust.  (i.e. 0 ~ 1 ) of the full throttle range
 #define AP_MOTORS_BAT_VOLT_MAX_DEFAULT  0.0f    // voltage limiting max default
 #define AP_MOTORS_BAT_VOLT_MIN_DEFAULT  0.0f    // voltage limiting min default (voltage dropping below this level will have no effect)
 #define AP_MOTORS_BAT_CURR_MAX_DEFAULT  0.0f    // current limiting max default

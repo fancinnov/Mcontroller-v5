@@ -112,7 +112,7 @@ const osThreadAttr_t loop50hzTask_attributes = {
 osThreadId_t sdLogTaskHandle;
 const osThreadAttr_t sdLogTask_attributes = {
   .name = "sdLogTask",
-  .stack_size = 1200 * 4,
+  .stack_size = 1000 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for gpsTask */
@@ -302,8 +302,7 @@ void InitTask(void *argument)
   rbInit(&ringbuffer_comm3_send, TxBuffer_comm3, URAT_DMA_Buffer_length);
   rbInit(&ringbuffer_comm4_send, TxBuffer_comm4, URAT_DMA_Buffer_length);
 
-  usb_printf("\r\nSystem initializing ...\r\n");
-  config_comm(MAV_COMM, GPS_COMM, MAV_COMM|MLINK_ESP, TFMINI_COMM, MAV_COMM|MLINK_ESP);
+  usb_printf("\r\nSystem: Mcontroller-V%ld-%ld initializing ...\r\n",VERSION_HARDWARE, VERSION_FIRMWARE);
   set_s1_baudrate(115200);
   set_s2_baudrate(115200);
   set_s3_baudrate(115200);
@@ -350,7 +349,9 @@ void Loop200hzTask(void *argument)
   for(;;)
   {
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
+	  comm_callback();
 	  MAG_Get_Data();
+	  offboard_callback();
 	  /***Do not change code above and add new code below***/
   }
   /* USER CODE END Loop200hzTask */
@@ -411,9 +412,9 @@ void Loop400hzTask(void *argument)
 	  ekf_baro_alt();
 	  MPU_CS_H;
 	  /***Do not change code above and change or add new code below***/
-//	  ekf_rf_alt();
 	  ekf_odom_xy();
-//	  ekf_gnss_xy();
+	  ekf_gnss_xy();
+	  ekf_opticalflow_xy();
 	  mode_update();
   }
   /* USER CODE END Loop400hzTask */
@@ -482,7 +483,8 @@ void MavSendTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  mav_send_data();
+	  distribute_mavlink_data();
+	  comm_send_data();
   }
   /* USER CODE END MavSendTask */
 }
@@ -504,9 +506,9 @@ void Loop50hzTask(void *argument)
   for(;;)
   {
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
-	  comm_callback();
 	  RC_Input_Loop();
 	  adc_update();
+	  opticalflow_update();
 	  uwb_position_update();
 	  /***Do not change code above and add new code below***/
   }
@@ -550,7 +552,7 @@ void GPSTask(void *argument)
 #if USE_GPS==0
 	osThreadTerminate(gpsTaskHandle);
 #endif
-	if(!GPS_Init(UM482)){// GPS_Init() task will block 10s
+	if(!GPS_Init(UM482, gnss_comm1)){// GPS_Init() task will block 10s
 		osThreadTerminate(gpsTaskHandle);
 	}
     uint8_t state_flag=0;
@@ -615,7 +617,7 @@ void TestTask(void *argument){
 	for(;;)							// NOTED: if codes need to loop, must add into for(;;){} or while(1){} or some other looper.
 	{
 	  debug();
-//	  vTaskGetInfo(loop400hzTaskHandle, &taskstatus, pdTRUE, eInvalid);
+//	  vTaskGetInfo(sdLogTaskHandle, &taskstatus, pdTRUE, eInvalid);
 //	  usb_printf("freeHeapSize:%d, freeStackSize:%d\n", xPortGetFreeHeapSize(),taskstatus.usStackHighWaterMark);
 	  osDelay(10);
 	}

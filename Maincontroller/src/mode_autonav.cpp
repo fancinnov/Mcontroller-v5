@@ -104,11 +104,11 @@ void mode_autonav(void){
 		if(ch7>=0.7&&ch7<1.0){//手动姿态
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 		}else if(ch7>0.3&&ch7<0.7){//定点
-			pos_control->set_xy_target(250.0f, -200.0f);
+			pos_control->set_xy_target(0.0f, 0.0f);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else if(ch7>0.0&&ch7<=0.3){//定点
-			pos_control->set_xy_target(250.0f, -200.0f);
+			pos_control->set_xy_target(0.0f, 0.0f);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{
@@ -168,21 +168,13 @@ void mode_autonav(void){
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 		}else if(ch7>0.3&&ch7<0.7){//定点
 			theta=0.0f;
-			pos_control->set_xy_target(250.0f, -200.0f);
+			pos_control->set_xy_target(0.0f, 0.0f);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else if(ch7>0.0&&ch7<=0.3){//画圆
 			theta+=(M_PI/5/400);
-			pos_control->set_xy_target(200+50*cosf(theta), -200.0f+50*sinf(theta));
+			pos_control->set_xy_target(50*cosf(theta)-50, 50*sinf(theta));
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-//			if(HAL_GetTick()-vel_last_time>10){//超过10ms没有更新则重置前馈控制器
-//				vel_last_x=pos_control->get_vel_target().x;
-//				vel_last_y=pos_control->get_vel_target().y;
-//			}
-//			pos_control->set_desired_accel_xy((pos_control->get_vel_target().x-vel_last_x)/_dt, (pos_control->get_vel_target().y-vel_last_y)/_dt);
-//			vel_last_x=pos_control->get_vel_target().x;
-//			vel_last_y=pos_control->get_vel_target().y;
-//			vel_last_time=HAL_GetTick();
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}else{
 			target_yaw+=target_yaw_rate*_dt;

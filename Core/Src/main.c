@@ -65,7 +65,6 @@ uint8_t HeartBeatFlags=0;
 uint32_t USB_Buffer_length=2048, URAT_DMA_Buffer_length=2048, RxBuffer_comm1_length, RxBuffer_comm2_length, RxBuffer_comm3_length, RxBuffer_comm4_length;
 uint8_t *RxBuffer_comm1_DMA, *RxBuffer_comm2_DMA, *RxBuffer_comm3_DMA, *RxBuffer_comm4_DMA;
 uint8_t *TxBuffer_comm0_buf, *TxBuffer_comm1_buf, *TxBuffer_comm2_buf, *TxBuffer_comm3_buf, *TxBuffer_comm4_buf;
-uint8_t COMM_0=DEV_COMM, COMM_1=DEV_COMM, COMM_2=DEV_COMM, COMM_3=DEV_COMM, COMM_4=DEV_COMM;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

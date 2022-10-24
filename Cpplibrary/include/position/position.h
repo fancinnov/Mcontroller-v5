@@ -43,6 +43,13 @@
 #define POSCONTROL_JERK_RATIO                   1.0f    // Defines the time it takes to reach the requested acceleration
 
 #define POSCONTROL_OVERSPEED_GAIN_Z             2.0f    // gain controlling rate at which z-axis speed is brought back within SPEED_UP and SPEED_DOWN range
+#define LOITER_SPEED_MIN                        20.0f   // minimum loiter speed in cm/s
+#define LOITER_POS_CORRECTION_MAX           	200.0f  // max position error in loiter
+#define LOITER_BRAKE_START_DELAY_DEFAULT        1.0f    // delay (in seconds) before loiter braking begins after sticks are released
+#define LOITER_BRAKE_JERK_DEFAULT           	500.0f  // maximum jerk in cm/s/s/s in loiter mode
+#define LOITER_BRAKE_ACCEL_DEFAULT          	250.0f  // minimum acceleration in loiter mode
+
+#define AVOID_ACCEL_CMSS_MAX         			100.0f  // maximum acceleration/deceleration in cm/s/s used to avoid hitting fence
 
 #ifdef __cplusplus
 // @class	PosControl
@@ -294,6 +301,14 @@ public:
     // lean_angles_to_accel - convert roll, pitch lean angles to lat/lon frame accelerations in cm/s/s
     void lean_angles_to_accel(float& accel_x_cmss, float& accel_y_cmss) const;
 
+    /// set pilot desired acceleration in degrees
+	//   dt should be the time (in seconds) since the last call to this function
+	void set_pilot_desired_acceleration(float roll_angle, float pitch_angle, float dt);
+	void reset_predicted_accel(float vx_ef, float vy_ef);
+    /// get maximum lean angle when using loiter
+    void calc_desired_velocity(float nav_dt);
+    void adjust_velocity(float kP, float accel_cmss, Vector2f &desired_vel_cms, float dt);
+
 protected:
 
     // general purpose flags
@@ -412,6 +427,17 @@ protected:
     // ekf reset handling
     uint32_t    _ekf_xy_reset_ms;      // system time of last recorded ekf xy position reset
     uint32_t    _ekf_z_reset_ms;       // system time of last recorded ekf altitude reset
+
+    // loiter controller internal variables
+	Vector2f    _desired_accel;         // slewed pilot's desired acceleration in lat/lon frame
+	Vector2f    _predicted_accel;
+	Vector2f    _predicted_euler_angle;
+	Vector2f    _predicted_euler_rate;
+	float       _brake_timer;
+	float       _brake_accel;
+	float  		_brake_jerk_max_cmsss;
+	float		_brake_accel_cmss;      // loiter's acceleration during braking in cm/s/s
+	bool 		_avoid=false;
 };
 #endif /* __cplusplus */
 

@@ -122,6 +122,16 @@ typedef struct {
 	float baro_alt; 			//m
 } SPL06_Data;
 
+typedef struct
+{
+    int16_t	 flow_x_integral;
+    int16_t	 flow_y_integral;
+    uint16_t integration_timespan;
+    uint16_t ground_distance;
+    uint8_t  quality;
+    uint8_t  version;
+}LC302_Data;
+
 typedef struct {
 	uint16_t motor[8];  // ESC:1000~2000; BRUSH:0~2500
 	uint16_t servo[4];  // SERVO:500~2500
@@ -177,6 +187,7 @@ extern L3GD20_Data l3gd20_data;
 extern MS5607_Data ms5607_data;
 extern SPL06_Data spl06_data;
 extern MS5611_Data ms5611_data;
+extern LC302_Data lc302_data;
 extern PWM_Channel pwm_channel;
 
 /****************c/c++ interface*******************************/
@@ -196,12 +207,13 @@ void uwb_position_update(void);
 void ekf_baro_alt(void);
 void ekf_rf_alt(void);
 void ekf_odom_xy(void);
+void ekf_opticalflow_xy(void);
 void ekf_gnss_xy(void);
 void throttle_loop(void);
 void get_tfmini_data(uint8_t buf);
+void opticalflow_update(void);
 void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t* msg_received, mavlink_status_t* status);
-void send_mavlink_data(mavlink_channel_t chan);
-void send_mavlink_param_list(mavlink_channel_t chan);
+void distribute_mavlink_data(void);
 void send_mavlink_heartbeat_data(void);
 void Logger_Update(void);
 void reset_dataflash(void);
@@ -211,7 +223,13 @@ void arm_motors_check(void);
 bool mode_init(void);
 void mode_update(void);
 void sdled_update(void);
+void offboard_callback(void);
 void debug(void);
+void comm0_callback(uint8_t data);
+void comm1_callback(uint8_t data);
+void comm2_callback(uint8_t data);
+void comm3_callback(uint8_t data);
+void comm4_callback(uint8_t data);
 /****************c/c++ interface*******************************/
 bool get_task_initialed(void);
 
@@ -340,6 +358,9 @@ uint8_t BARO_Init(void);
 void BARO_Get_Date(void);
 void Baro_set_press_offset(float vel); //速度单位:m/s
 
+//光流驱动
+uint8_t get_lc302_data(uint8_t buf);//解析成功返回0,未解析完返回1,解析失败返回2
+
 /***fram驱动函数为底层驱动，它的上层函数在Cpplibrary中的flash.h***/
 void FRAM_Init(void);//FRAM 初始化
 uint8_t FRAM_Get_Status(void);//获取fram状态
@@ -363,21 +384,6 @@ void Flash_Write_Data(uint32_t addr, uint8_t *data, uint8_t length);
 void Flash_Read_Data(uint32_t addr, uint8_t *data, uint8_t length);
 
 /****serial port and usb port****/
-extern uint8_t COMM_0, COMM_1, COMM_2, COMM_3, COMM_4;
-/***************usb+串口配置****************
- * *************comm0:USB口***************
- * *************comm1:Serial串口1**********
- * *************comm2:Serial串口2**********
- * *************comm3:Serial串口3**********
- * *************comm4:Serial串口4**********
- * @param:
- * comm0~comm4可以配置为下列可选参数,参数及其含义如下：
- * (1)DEV_COMM 		自定义模式
- * (2)MAV_COMM  	Mavlink模式  注意：在MAV_COMM模式下如果串口连接了Mlink Wifi数传模块, 则需要配置为MAV_COMM|MLINK_ESP
- * (3)GPS_COMM  	GPS模式
- * (4)TFMINI_COMM  	TFmini激光测距仪
- * **************************************/
-void config_comm(uint8_t comm0, uint8_t comm1, uint8_t comm2, uint8_t comm3, uint8_t comm4);
 
 /*****************************以下为usb+串口接收数据相关函数******************************/
 uint16_t get_comm0_available(void);	//判断usb口是否有数据收到,有数据收到则返回接收到的byte数,没有数据收到返回0;	(注意：该函数只有在usb口是自定义模式 DEV_COMM 时才有效)
@@ -500,7 +506,7 @@ HAL_StatusTypeDef s4_send_buf_delayms(uint8_t* buf, uint16_t size, uint32_t time
   * @retval None
   */
 void mavlink_send_buffer(mavlink_channel_t chan, mavlink_message_t *msg);
-void mav_send_data(void);//把缓冲区中的数据以非阻塞方式从MAVLINK_COMM_0~MAVLINK_COMM_4中发送出去,此函数为系统函数,不需要用户调用.
+void comm_send_data(void);//把缓冲区中的数据以非阻塞方式从MAVLINK_COMM_0~MAVLINK_COMM_4中发送出去,此函数为系统函数,不需要用户调用.
 
 #define EVENTBIT_HEARTBEAT_COMM_0 (1<<0) //usb
 #define EVENTBIT_HEARTBEAT_COMM_1 (1<<1) //串口1

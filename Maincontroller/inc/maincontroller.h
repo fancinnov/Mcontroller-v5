@@ -16,6 +16,7 @@
 #include "ekf/ekf_gnss.h"
 #include "position/position.h"
 #include "compass/compassCalibrator.h"
+#include "compass/declination.h"
 #include "accel/accelCalibrator.h"
 #include "flash/flash.h"
 #include "sdlog/sdlog.h"
@@ -37,6 +38,7 @@ extern DataFlash *dataflash;
 extern SDLog *sdlog;
 
 const float _dt=0.0025;
+void send_mavlink_param_list(mavlink_channel_t chan);
 void send_mavlink_mission_ack(mavlink_channel_t chan, MAV_MISSION_RESULT result);
 void send_mavlink_mission_item_reached(mavlink_channel_t chan, uint16_t seq);
 void send_mavlink_mission_count(mavlink_channel_t chan);
@@ -46,6 +48,8 @@ float get_non_takeoff_throttle(void);
 void zero_throttle_and_relax_ac(void);
 void set_land_complete(bool b);
 void get_pilot_desired_lean_angles(float &roll_out, float &pitch_out, float angle_max, float angle_limit);
+void update_air_resistance(void);
+void get_air_resistance_lean_angles(float &roll_d, float &pitch_d, float angle_max, float gain);
 float get_pilot_desired_yaw_rate(float stick_angle);
 float get_pilot_desired_throttle(float throttle_control, float thr_mid);
 float get_pilot_desired_climb_rate(float throttle_control);

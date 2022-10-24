@@ -42,21 +42,23 @@ static bool ahrs_healthy=false;
 static bool initial_compass_cal=false;
 static bool initial_gnss=false;
 static bool get_gnss_location=false;
+static bool get_opticalflow=false;
 static bool get_rangefinder_data=false;
 static bool get_mav_yaw=false, get_odom_xy=false;
 static bool mag_corrected=false, mag_correcting=false;
 static bool use_uwb_pos_z=false;
 static bool rc_channels_sendback=false;
+static bool gcs_connected=false;
+static bool offboard_connected=false;
 
 static float accel_filt_hz=20;//HZ
 static float gyro_filt_hz=20;//HZ
 static float mag_filt_hz=5;//HZ
 static float baro_filt_hz=2;//HZ
 static float accel_ef_filt_hz=10;//HZ
-static float uwb_pos_filt_hz=2;//HZ
-static float odom_pos_filt_hz=5;//HZ
-static float odom_vel_filt_hz=5;//HZ
-static float rangefinder_filt_hz=20;//HZ
+static float uwb_pos_filt_hz=5;//HZ
+static float rangefinder_filt_hz=10;//HZ
+static float opticalflow_filt_hz=5;//HZ
 static float pitch_rad=0 , roll_rad=0 , yaw_rad=0;
 static float pitch_deg=0 , roll_deg=0 , yaw_deg=0;
 static float cos_roll=0, cos_pitch=0, cos_yaw=0, sin_roll=0, sin_pitch=0, sin_yaw=0;
@@ -69,15 +71,15 @@ static Vector3f accel_correct, gyro_correct, mag_correct;		//修正后的加速�
 static Vector3f accel_filt, gyro_filt, mag_filt;				//滤波优化后的加速度、角速度、磁罗盘测量值
 static Vector3f accel_ef, gyro_ef;								//地球坐标系下的三轴加速度、角速度
 static Vector3f gyro_offset;
-static Vector3f odom_3d,odom_offset;
+static Vector3f odom_3d,odom_offset,uwb_pos;
 static Vector2f odom_vel_xy_filt,odom_pos_xy_filt;
 static Location gnss_origin_pos, gnss_current_pos;
 static Vector3f ned_current_pos, ned_current_vel;
 static Matrix3f dcm_matrix, dcm_matrix_correct;										//旋转矩阵
 static LowPassFilter2pVector3f	_accel_filter, _gyro_filter, _accel_ef_filter;
 static LowPassFilterFloat _baro_alt_filter;
-static LowPassFilterVector3f _mag_filter, _uwb_pos_filter;
-static LowPassFilterVector2f _odom_vel_filter, _odom_pos_filter;
+static LowPassFilterVector3f _mag_filter, _uwb_pos_filter, _flow_gyro_filter;
+static LowPassFilterVector2f _air_resistance_filter;
 
 parameter *param=new parameter();
 ap_t *ap=new ap_t();
@@ -86,6 +88,7 @@ EKF_Baro *ekf_baro=new EKF_Baro(_dt, 0.0016, 1.0, 0.000016, 0.000016);
 EKF_Rangefinder *ekf_rangefinder=new EKF_Rangefinder(_dt, 1.0, 0.000016, 0.16);
 EKF_Odometry *ekf_odometry=new EKF_Odometry(_dt, 0.0016, 0.0016, 0.000016, 0.000016, 0.0004, 0.0004);
 EKF_GNSS *ekf_gnss=new EKF_GNSS(_dt, 0.0016, 0.0016, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
+EKF_GNSS *ekf_opticalflow=new EKF_GNSS(_dt, 0.0016, 0.0016, 0.0016, 0.0016, 0.000016, 0.00016, 0.000016, 0.00016);
 Motors *motors=new Motors(1/_dt);
 Attitude_Multi *attitude=new Attitude_Multi(*motors, gyro_filt, _dt);
 PosControl *pos_control=new PosControl(*motors, *attitude);
@@ -95,6 +98,7 @@ DataFlash *dataflash=new DataFlash();
 SDLog *sdlog=new SDLog();
 UWB *uwb=new UWB();
 Rangefinder_state rangefinder_state;
+Opticalflow_state opticalflow_state;
 
 float ahrs_pitch_rad(void){return pitch_rad;}
 float ahrs_roll_rad(void){return roll_rad;}
@@ -156,9 +160,12 @@ float get_ned_vel_z(void){return ned_current_vel.z;}
 float get_odom_x(void){return odom_3d.x;}
 float get_odom_y(void){return odom_3d.y;}
 float get_odom_z(void){return odom_3d.z;}
+float get_uwb_x(void){return uwb_pos.x;}
+float get_uwb_y(void){return uwb_pos.y;}
+float get_uwb_z(void){return uwb_pos.z;}
 float get_yaw_map(void){return yaw_map;}
 bool get_gnss_location_state(void){return get_gnss_location;}
-
+bool get_gcs_connected(void){return gcs_connected;}
 float get_mav_x_target(void){return mav_x_target;}
 float get_mav_y_target(void){return mav_y_target;}
 float get_mav_vx_target(void){return mav_vx_target;}
@@ -216,6 +223,13 @@ void update_dataflash(void){
 		dataflash->set_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
 		dataflash->set_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
 		dataflash->set_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+		dataflash->set_param_float(param->lowbatt_return_volt.num, param->lowbatt_return_volt.value);
+		dataflash->set_param_float(param->lowbatt_land_volt.num, param->lowbatt_land_volt.value);
+		dataflash->set_param_float(param->poshold_vel_max.num, param->poshold_vel_max.value);
+		dataflash->set_param_float(param->poshold_accel_max.num, param->poshold_accel_max.value);
+		dataflash->set_param_float(param->mission_vel_max.num, param->mission_vel_max.value);
+		dataflash->set_param_float(param->mission_accel_max.num, param->mission_accel_max.value);
+		dataflash->set_param_float(param->alt_return.num, param->alt_return.value);
 
 		/* *************************************************
 		* ****************Dev code begin*******************/
@@ -270,6 +284,14 @@ void update_dataflash(void){
 		dataflash->get_param_vector3f(param->horizontal_correct.num, param->horizontal_correct.value);
 		dataflash->get_param_vector3f(param->vel_pid_integrator.num, param->vel_pid_integrator.value);
 		dataflash->get_param_vector3f(param->rate_pid_integrator.num, param->rate_pid_integrator.value);
+		dataflash->get_param_float(param->lowbatt_return_volt.num, param->lowbatt_return_volt.value);
+		dataflash->get_param_float(param->lowbatt_land_volt.num, param->lowbatt_land_volt.value);
+		dataflash->get_param_float(param->poshold_vel_max.num, param->poshold_vel_max.value);
+		dataflash->get_param_float(param->poshold_accel_max.num, param->poshold_accel_max.value);
+		dataflash->get_param_float(param->mission_vel_max.num, param->mission_vel_max.value);
+		dataflash->get_param_float(param->mission_accel_max.num, param->mission_accel_max.value);
+		dataflash->get_param_float(param->alt_return.num, param->alt_return.value);
+
 		/* *************************************************
 		 * ****************Dev code begin*******************/
 		// Warning! Developer can add your new code here!
@@ -343,6 +365,30 @@ void get_tfmini_data(uint8_t buf)
 	}
 }
 
+static float flow_alt, flow_bf_x, flow_bf_y;
+static Vector3f flow_gyro_offset;
+void opticalflow_update(void){
+#if USE_FLOW
+	flow_alt=100.0f;//cm
+	if(lc302_data.quality==245){
+		opticalflow_state.healthy=true;
+		get_opticalflow=true;
+	}else{
+		opticalflow_state.healthy=false;
+		return;
+	}
+	//光流坐标系->机体坐标系//TODO:add gyro offset
+	flow_bf_x=(float)lc302_data.flow_y_integral/10000.0f-constrain_float(flow_gyro_offset.y/50, -0.1, 0.1);
+	flow_bf_y=-(float)lc302_data.flow_x_integral/10000.0f+constrain_float(flow_gyro_offset.x/50, -0.1, 0.1);
+	//机体坐标系->大地坐标系
+	opticalflow_state.rads.x=flow_bf_x*ahrs_cos_yaw()-flow_bf_y*ahrs_sin_yaw();
+	opticalflow_state.rads.y=flow_bf_x*ahrs_sin_yaw()+flow_bf_y*ahrs_cos_yaw();
+	opticalflow_state.flow_dt=(float)lc302_data.integration_timespan/1000000.0f;
+	opticalflow_state.vel=opticalflow_state.vel_filter.apply(opticalflow_state.rads*flow_alt/opticalflow_state.flow_dt);
+	opticalflow_state.pos+=opticalflow_state.vel*opticalflow_state.flow_dt;
+#endif
+}
+
 //接收
 static uint32_t time_last_heartbeat[5]={0};
 static uint32_t time_last_attitude=0;
@@ -360,7 +406,7 @@ static uint8_t gcs_channel=255;
 static uint16_t gnss_point_statis=0;
 //发送
 static mavlink_system_t mavlink_system;
-static mavlink_message_t msg_global_attitude_position, msg_global_position_int, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item;
+static mavlink_message_t msg_global_attitude_position, msg_global_position_int, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item, msg_system_version;
 static mavlink_global_vision_position_estimate_t global_attitude_position;
 static mavlink_global_position_int_t global_position_int;
 static mavlink_mission_count_t mission_count_send;
@@ -368,13 +414,20 @@ static mavlink_mission_item_t mission_item_send;
 static mavlink_command_long_t command_long;
 static mavlink_battery_status_t battery_status;
 static mavlink_rc_channels_t rc_channels_t;
+static mavlink_timesync_t system_version;
 
 void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t* msg_received, mavlink_status_t* status){
 	if (mavlink_parse_char(chan, data, msg_received, status)){
 		switch (msg_received->msgid) {
 			case MAVLINK_MSG_ID_HEARTBEAT:
 				mavlink_msg_heartbeat_decode(msg_received, &heartbeat);
-				HeartBeatFlags|=(EVENTBIT_HEARTBEAT_COMM_0<<(uint8_t)chan);
+				if((HeartBeatFlags&(EVENTBIT_HEARTBEAT_COMM_0<<(uint8_t)chan))==0){
+					HeartBeatFlags|=(EVENTBIT_HEARTBEAT_COMM_0<<(uint8_t)chan);
+					system_version.tc1=VERSION_HARDWARE;
+					system_version.ts1=VERSION_FIRMWARE;
+					mavlink_msg_timesync_encode(mavlink_system.sysid, mavlink_system.compid, &msg_system_version, &system_version);
+					mavlink_send_buffer(chan, &msg_system_version);
+				}
 				time_last_heartbeat[(uint8_t)chan]=HAL_GetTick();
 				if(heartbeat.type==MAV_TYPE_GCS){//地面站
 					gcs_channel=chan;
@@ -525,6 +578,13 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							param->t_hover_update_min.value=THR_HOVER_UPDATE_MIN;
 							param->t_hover_update_max.value=THR_HOVER_UPDATE_MAX;
 							param->vib_land.value=VIB_LAND_THR;
+							param->lowbatt_return_volt.value=LOWBATT_RETURN_VOLT;
+							param->lowbatt_land_volt.value=LOWBATT_LAND_VOLT;
+							param->poshold_vel_max.value=POSHOLD_VEL_MAX;
+							param->poshold_accel_max.value=POSHOLD_ACCEL_MAX;
+							param->mission_vel_max.value=MISSION_VEL_MAX;
+							param->mission_accel_max.value=MISSION_ACCEL_MAX;
+							param->alt_return.value=ALT_RETURN;
 
 							dataflash->set_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
 							dataflash->set_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
@@ -541,6 +601,13 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							dataflash->set_param_float(param->t_hover_update_min.num, param->t_hover_update_min.value);
 							dataflash->set_param_float(param->t_hover_update_max.num, param->t_hover_update_max.value);
 							dataflash->set_param_float(param->vib_land.num, param->vib_land.value);
+							dataflash->set_param_float(param->lowbatt_return_volt.num, param->lowbatt_return_volt.value);
+							dataflash->set_param_float(param->lowbatt_land_volt.num, param->lowbatt_land_volt.value);
+							dataflash->set_param_float(param->poshold_vel_max.num, param->poshold_vel_max.value);
+							dataflash->set_param_float(param->poshold_accel_max.num, param->poshold_accel_max.value);
+							dataflash->set_param_float(param->mission_vel_max.num, param->mission_vel_max.value);
+							dataflash->set_param_float(param->mission_accel_max.num, param->mission_accel_max.value);
+							dataflash->set_param_float(param->alt_return.num, param->alt_return.value);
 
 							dataflash->set_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
 							dataflash->set_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
@@ -866,6 +933,62 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->auto_land_speed.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,27.0f)){
+							param->lowbatt_return_volt.value=cmd.param2;
+							dataflash->set_param_float(param->lowbatt_return_volt.num, param->lowbatt_return_volt.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=27.0f;
+							command_long.param2=param->lowbatt_return_volt.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,28.0f)){
+							param->lowbatt_land_volt.value=cmd.param2;
+							dataflash->set_param_float(param->lowbatt_land_volt.num, param->lowbatt_land_volt.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=28.0f;
+							command_long.param2=param->lowbatt_land_volt.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,29.0f)){
+							param->poshold_vel_max.value=cmd.param2;
+							dataflash->set_param_float(param->poshold_vel_max.num, param->poshold_vel_max.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=29.0f;
+							command_long.param2=param->poshold_vel_max.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,30.0f)){
+							param->poshold_accel_max.value=cmd.param2;
+							dataflash->set_param_float(param->poshold_accel_max.num, param->poshold_accel_max.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=30.0f;
+							command_long.param2=param->poshold_accel_max.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,31.0f)){
+							param->mission_vel_max.value=cmd.param2;
+							dataflash->set_param_float(param->mission_vel_max.num, param->mission_vel_max.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=31.0f;
+							command_long.param2=param->mission_vel_max.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,32.0f)){
+							param->mission_accel_max.value=cmd.param2;
+							dataflash->set_param_float(param->mission_accel_max.num, param->mission_accel_max.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=32.0f;
+							command_long.param2=param->mission_accel_max.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
+						}else if(is_equal(cmd.param1,33.0f)){
+							param->alt_return.value=cmd.param2;
+							dataflash->set_param_float(param->alt_return.num, param->alt_return.value);
+							command_long.command=MAV_CMD_DO_SET_PARAMETER;
+							command_long.param1=33.0f;
+							command_long.param2=param->alt_return.value;
+							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+							mavlink_send_buffer(chan, &msg_command_long);
 						}
 						/* *************************************************
 						 * ****************Dev code begin*******************/
@@ -973,7 +1096,8 @@ void send_mavlink_heartbeat_data(void){
 	mavlink_heartbeat_t heartbeat_send;
 	mavlink_system.sysid=1;
 	mavlink_system.compid=MAV_COMP_ID_AUTOPILOT1;
-	heartbeat_send.type=(param->robot_type.value<<24)|(param->motor_type.value<<16);
+	heartbeat_send.type=param->robot_type.value;//机器人类型
+	heartbeat_send.system_status=param->motor_type.value;//电机类型
 	heartbeat_send.autopilot=robot_main_mode;//主模式
 	heartbeat_send.custom_mode=robot_sub_mode;//子模式
 	heartbeat_send.base_mode=0;
@@ -993,36 +1117,36 @@ void send_mavlink_heartbeat_data(void){
 	battery_status.current_battery=(int16_t)(get_batt_current()*100);
 	mavlink_msg_battery_status_encode(mavlink_system.sysid, mavlink_system.compid, &msg_battery_status, &battery_status);
 
-	if ((COMM_0&COMM_MASK)==MAV_COMM){
+#if COMM_0==MAV_COMM
 		mavlink_send_buffer(MAVLINK_COMM_0, &msg_heartbeat);
 		if(gcs_channel==MAVLINK_COMM_0){
 			mavlink_send_buffer(MAVLINK_COMM_0, &msg_battery_status);
 		}
-	}
-	if ((COMM_1&COMM_MASK)==MAV_COMM){
+#endif
+#if COMM_1==MAV_COMM
 	    mavlink_send_buffer(MAVLINK_COMM_1, &msg_heartbeat);
 	    if(gcs_channel==MAVLINK_COMM_1){
 			mavlink_send_buffer(MAVLINK_COMM_1, &msg_battery_status);
 		}
-	}
-	if ((COMM_2&COMM_MASK)==MAV_COMM){
+#endif
+#if COMM_2==MAV_COMM
 	    mavlink_send_buffer(MAVLINK_COMM_2, &msg_heartbeat);
 	    if(gcs_channel==MAVLINK_COMM_2){
 			mavlink_send_buffer(MAVLINK_COMM_2, &msg_battery_status);
 		}
-	}
-	if ((COMM_3&COMM_MASK)==MAV_COMM){
+#endif
+#if COMM_3==MAV_COMM
 	    mavlink_send_buffer(MAVLINK_COMM_3, &msg_heartbeat);
 	    if(gcs_channel==MAVLINK_COMM_3){
 			mavlink_send_buffer(MAVLINK_COMM_3, &msg_battery_status);
 		}
-	}
-	if ((COMM_4&COMM_MASK)==MAV_COMM){
+#endif
+#if COMM_4==MAV_COMM
 	    mavlink_send_buffer(MAVLINK_COMM_4, &msg_heartbeat);
 	    if(gcs_channel==MAVLINK_COMM_4){
 			mavlink_send_buffer(MAVLINK_COMM_4, &msg_battery_status);
 		}
-	}
+#endif
 }
 
 void send_mavlink_mission_ack(mavlink_channel_t chan, MAV_MISSION_RESULT result){
@@ -1073,6 +1197,12 @@ void send_mavlink_data(mavlink_channel_t chan)
 {
 	if((HAL_GetTick()-time_last_heartbeat[(uint8_t)chan])>5000){
 		HeartBeatFlags&=(0xFF^(EVENTBIT_HEARTBEAT_COMM_0<<(uint8_t)chan));
+		if(gcs_channel==chan){
+			gcs_channel=255;
+		}
+		if(offboard_connected){
+			offboard_connected=false;
+		}
 		set_rc_channels_override(false);
 		return;
 	}
@@ -1158,6 +1288,90 @@ void send_mavlink_data(mavlink_channel_t chan)
 		mavlink_msg_rc_channels_encode(mavlink_system.sysid, mavlink_system.compid, &msg_rc_channels, &rc_channels_t);
 		mavlink_send_buffer(chan, &msg_rc_channels);
 	}
+}
+
+void distribute_mavlink_data(void){
+#if COMM_0==MAV_COMM
+	if (HeartBeatFlags&EVENTBIT_HEARTBEAT_COMM_0){
+		send_mavlink_data(MAVLINK_COMM_0);
+	}
+#endif
+#if COMM_1==MAV_COMM
+	if (HeartBeatFlags&EVENTBIT_HEARTBEAT_COMM_1){
+		send_mavlink_data(MAVLINK_COMM_1);
+	}
+#endif
+#if COMM_2==MAV_COMM
+	if (HeartBeatFlags&EVENTBIT_HEARTBEAT_COMM_2){
+		send_mavlink_data(MAVLINK_COMM_2);
+	}
+#endif
+#if COMM_3==MAV_COMM
+	if (HeartBeatFlags&EVENTBIT_HEARTBEAT_COMM_3){
+		send_mavlink_data(MAVLINK_COMM_3);
+	}
+#endif
+#if COMM_4==MAV_COMM
+	if (HeartBeatFlags&EVENTBIT_HEARTBEAT_COMM_4){
+		send_mavlink_data(MAVLINK_COMM_4);
+	}
+#endif
+}
+
+static mavlink_message_t msg_received;
+static mavlink_status_t status;
+void comm0_callback(uint8_t data){
+#if COMM_0==MAV_COMM
+	parse_mavlink_data(MAVLINK_COMM_0, data, &msg_received, &status);
+#endif
+}
+
+void comm1_callback(uint8_t data){
+#if COMM_1==MAV_COMM
+	parse_mavlink_data(MAVLINK_COMM_1, data, &msg_received, &status);
+#elif COMM_1==GPS_COMM
+	get_gps_data(data);
+#elif COMM_1==TFMINI_COMM
+	get_tfmini_data(data);
+#elif COMM_1==LC302_COMM
+	get_lc302_data(data);
+#endif
+}
+
+void comm2_callback(uint8_t data){
+#if COMM_2==MAV_COMM
+	parse_mavlink_data(MAVLINK_COMM_2, data, &msg_received, &status);
+#elif COMM_2==GPS_COMM
+	get_gps_data(data);
+#elif COMM_2==TFMINI_COMM
+	get_tfmini_data(data);
+#elif COMM_2==LC302_COMM
+	get_lc302_data(data);
+#endif
+}
+
+void comm3_callback(uint8_t data){
+#if COMM_3==MAV_COMM
+	parse_mavlink_data(MAVLINK_COMM_3, data, &msg_received, &status);
+#elif COMM_3==GPS_COMM
+	get_gps_data(data);
+#elif COMM_3==TFMINI_COMM
+	get_tfmini_data(data);
+#elif COMM_3==LC302_COMM
+	get_lc302_data(data);
+#endif
+}
+
+void comm4_callback(uint8_t data){
+#if COMM_4==MAV_COMM
+	parse_mavlink_data(MAVLINK_COMM_4, data, &msg_received, &status);
+#elif COMM_4==GPS_COMM
+	get_gps_data(data);
+#elif COMM_4==TFMINI_COMM
+	get_tfmini_data(data);
+#elif COMM_4==LC302_COMM
+	get_lc302_data(data);
+#endif
 }
 
 void send_mavlink_param_list(mavlink_channel_t chan)
@@ -1315,6 +1529,41 @@ void send_mavlink_param_list(mavlink_channel_t chan)
 	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 	mavlink_send_buffer(chan, &msg_command_long);
 
+	command_long.param1=27.0f;
+	command_long.param2=param->lowbatt_return_volt.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=28.0f;
+	command_long.param2=param->lowbatt_land_volt.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=29.0f;
+	command_long.param2=param->poshold_vel_max.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=30.0f;
+	command_long.param2=param->poshold_accel_max.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=31.0f;
+	command_long.param2=param->mission_vel_max.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=32.0f;
+	command_long.param2=param->mission_accel_max.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
+	command_long.param1=33.0f;
+	command_long.param2=param->alt_return.value;
+	mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
+	mavlink_send_buffer(chan, &msg_command_long);
+
 	/* *************************************************
 	 * ****************Dev code begin*******************/
 	// Warning! Developer can add your new code here!
@@ -1446,6 +1695,8 @@ void pos_init(void){
 	pos_control->set_lean_angle_max_d(param->angle_max.value);
 	sdlog->Logger_Read_Gnss();
 	rangefinder_state.alt_cm_filt.set_cutoff_frequency(100, rangefinder_filt_hz);//tfmini默认频率100hz
+	opticalflow_state.vel_filter.set_cutoff_frequency(50, opticalflow_filt_hz);//光流默认频率50hz
+	_uwb_pos_filter.set_cutoff_frequency(uwb_pos_filt_hz);
 }
 
 bool uwb_init(void){
@@ -1474,9 +1725,9 @@ void update_accel_gyro_data(void){
 	accel.rotate(ROTATION_YAW_270);
 //	usb_printf("ax:%f,ay:%f,az:%f\n",accel.x,accel.y,accel.z);
 
-	gyro.x = icm20608_data.gyrof.x;//°/s
-	gyro.y = icm20608_data.gyrof.y;//°/s
-	gyro.z = icm20608_data.gyrof.z;//°/s
+	gyro.x = icm20608_data.gyrof.x;//rad/s
+	gyro.y = icm20608_data.gyrof.y;//rad/s
+	gyro.z = icm20608_data.gyrof.z;//rad/s
 
 	if(isnan(gyro.x) || isinf(gyro.x) || isnan(gyro.y) || isinf(gyro.y) || isnan(gyro.z) || isinf(gyro.z)){
 		return;
@@ -1499,13 +1750,16 @@ void update_accel_gyro_data(void){
 			gyro_filt=Vector3f(0,0,0);
 			_accel_filter.set_cutoff_frequency(400, accel_filt_hz);
 			_gyro_filter.set_cutoff_frequency(400, gyro_filt_hz);
+			_flow_gyro_filter.set_cutoff_frequency(400, opticalflow_filt_hz);
 			_accel_ef_filter.set_cutoff_frequency(400, accel_ef_filt_hz);
+			_air_resistance_filter.set_cutoff_frequency(400, 1);
 			ahrs_stage_compass=true;
 		}
 	}else{
 		if(accel_correct.length()<50){//过滤奇异值
 			accel_filt=_accel_filter.apply(accel_correct);
 			gyro_filt=_gyro_filter.apply(gyro_correct);
+			flow_gyro_offset=_flow_gyro_filter.apply(gyro_filt);
 		}
 	}
 }
@@ -1664,10 +1918,7 @@ bool gyro_calibrate(void){
 }
 
 void update_mag_data(void){
-	if(!USE_MAG){
-		return;
-	}
-
+#if USE_MAG
 	mag.x = qmc5883_data.magf.x;
 	mag.y = qmc5883_data.magf.y;
 	mag.z = qmc5883_data.magf.z;
@@ -1692,6 +1943,7 @@ void update_mag_data(void){
 		mag_filt = _mag_filter.apply(mag_correct);
 		mag_corrected=true;
 	}
+#endif
 }
 
 void compass_calibrate(void){
@@ -1764,10 +2016,12 @@ void ahrs_update(void){
 		sin_yaw=sinf(yaw_rad);
 		ahrs_healthy=true;
 	}
-	if(USE_MAG&&mag_correcting){
+#if USE_MAG
+	if(mag_correcting){
 		compass_calibrate();
 		ahrs_healthy=false;
 	}
+#endif
 }
 
 static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_correct=0,gnss_alt_last=0;
@@ -1816,13 +2070,8 @@ void update_baro_alt(void){
 			vel_2d=0.0f;
 		}
 		if(rangefinder_state.alt_healthy){
-			if(rf_correct){
-				rf_alt_delta=rangefinder_state.alt_cm-rf_alt_last;
-				rf_alt_last=rangefinder_state.alt_cm;
-			}else{
-				rf_alt_delta=0.0f;
-				rf_alt_last=rangefinder_state.alt_cm;
-			}
+			rf_alt_delta=rangefinder_state.alt_cm-rf_alt_last;
+			rf_alt_last=rangefinder_state.alt_cm;
 			if(abs(rf_alt_delta)<100.0f&&!is_equal(rf_alt_delta,0.0f)){
 				rf_correct=true;
 			}else{
@@ -1836,7 +2085,7 @@ void update_baro_alt(void){
 		accel_2d=sqrtf(sq(get_accel_ef().x,get_accel_ef().y));
 		if(rf_correct&&(baro_alt_delta*rf_alt_delta<0||abs(baro_alt_delta)>15.0f||accel_2d>1.0f)){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=rf_alt_delta;
-		}else if(K_gain>0.5f&&(abs(baro_alt_delta)>15.0f||accel_2d>1.0f)&&abs(gnss_alt_delta)<100.0f){//防止水平飞行掉高和大风扰动
+		}else if(K_gain>0.2f&&(abs(baro_alt_delta)>15.0f||accel_2d>1.0f)&&abs(gnss_alt_delta)<100.0f){//防止水平飞行掉高和大风扰动
 			baro_alt_delta=gnss_alt_delta;
 		}else{
 			if(vel_2d<100&&accel_2d<1.0f){
@@ -1899,67 +2148,65 @@ void uwb_update(void){
 	uwb->uwb_update();
 }
 
-//call at 50HZ
-bool uwb_pos_filt=false;
+static uint32_t currunt_uwb_ms, last_uwb_ms = 0;
 void uwb_position_update(void){
+#if USE_UWB
 	write_gpio2(true);
 	FMU_LED6_Control(uwb->get_uwb_position);
-	if(uwb->uwb_position.x==0&&uwb->uwb_position.y==0){
+	if(!uwb->get_uwb_position){
 		return;
 	}
-	if(!uwb_pos_filt){
-		uwb_pos_filt=true;
-		_uwb_pos_filter.set_cutoff_frequency(50, uwb_pos_filt_hz);
-	}
-	if(uwb->get_uwb_position){
-		uwb->get_uwb_position=false;
-		float theta=1.65;
-		odom_3d.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
-		odom_3d.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
-		odom_3d.z=uwb->uwb_position.z;
-		odom_3d = _uwb_pos_filter.apply(odom_3d);
-//		if(odom_3d.z>30&&use_uwb_pos_z){
-//			rangefinder_state.alt_healthy=true;
-//			rangefinder_state.alt_cm=odom_3d.z;
-//			rangefinder_state.last_healthy_ms=HAL_GetTick();
-//		}else{
-//			rangefinder_state.alt_healthy=false;
-//		}
-		get_odom_xy=true;
-	}
+	uwb->get_uwb_position=false;
+	float theta=1.65;
+	uwb_pos.x=uwb->uwb_position.x*cosf(theta)+uwb->uwb_position.y*sinf(theta);
+	uwb_pos.y=-uwb->uwb_position.x*sinf(theta)+uwb->uwb_position.y*cosf(theta);
+	uwb_pos.z=uwb->uwb_position.z;
+	currunt_uwb_ms=HAL_GetTick();
+	uwb_pos = _uwb_pos_filter.apply(uwb_pos, (float)(currunt_uwb_ms-last_uwb_ms)/1000.0f);
+	last_uwb_ms = currunt_uwb_ms;
+#endif
 }
 
-bool odom_filt=false;
+uint32_t get_uwb_last_ms(void){
+	return last_uwb_ms;
+}
+
 void ekf_odom_xy(void){
+#if USE_ODOMETRY
 	if(!ahrs->is_initialed()||(!ahrs_healthy)){
 		return;
 	}
 	if(odom_3d.x==0&&odom_3d.y==0){
 		return;
 	}
-	if(!odom_filt){
-		odom_filt=true;
-		_odom_vel_filter.set_cutoff_frequency(400, odom_vel_filt_hz);
-		_odom_pos_filter.set_cutoff_frequency(400, odom_pos_filt_hz);
-	}
 	ekf_odometry->update(get_odom_xy,odom_3d.x,odom_3d.y);
-//	odom_vel_xy_filt=_odom_vel_filter.apply(Vector2f(ekf_odometry->vel_x,ekf_odometry->vel_y));
-//	odom_pos_xy_filt=_odom_pos_filter.apply(Vector2f(ekf_odometry->pos_x,ekf_odometry->pos_y));
+#endif
+}
+
+void ekf_opticalflow_xy(void){
+#if USE_FLOW
+	if(!ahrs->is_initialed()||(!ahrs_healthy)){
+		return;
+	}
+	ekf_opticalflow->update(get_opticalflow, opticalflow_state.pos.x, opticalflow_state.pos.y, opticalflow_state.vel.x, opticalflow_state.vel.y);
+#endif
 }
 
 void ekf_gnss_xy(void){
+#if USE_GPS
 	if(!ahrs->is_initialed()||(!ahrs_healthy)||!get_gps_state()){
 		return;
 	}
 	ekf_gnss->update(get_gnss_location,get_ned_pos_x(),get_ned_pos_y(),get_ned_vel_x(),get_ned_vel_y());
+#endif
 }
 
 float get_pos_x(void){//cm
-	return ekf_odometry->pos_x;
+	return ekf_opticalflow->pos_x;
 }
 
 float get_pos_y(void){//cm
-	return ekf_odometry->pos_y;
+	return ekf_opticalflow->pos_y;
 }
 
 float get_pos_z(void){//cm
@@ -1967,11 +2214,11 @@ float get_pos_z(void){//cm
 }
 
 float get_vel_x(void){//cm/s
-	return ekf_odometry->vel_x;
+	return ekf_opticalflow->vel_x;
 }
 
 float get_vel_y(void){//cm/s
-	return ekf_odometry->vel_y;
+	return ekf_opticalflow->vel_y;
 }
 
 float get_vel_z(void){//cm/s
@@ -2172,11 +2419,7 @@ float get_surface_tracking_climb_rate(float target_rate, float current_alt_targe
 
     // reset target altitude if this controller has just been engaged
     if (now - last_call_ms > RANGEFINDER_TIMEOUT_MS) {
-    	target_rangefinder_alt = rangefinder_state.alt_cm;
-		float alt_delta=current_alt_target - current_alt;
-		if(alt_delta>0){
-			target_rangefinder_alt+=alt_delta;
-		}
+    	target_rangefinder_alt = rangefinder_state.alt_cm + current_alt_target - current_alt;
     }
     last_call_ms = now;
 
@@ -2267,6 +2510,31 @@ void get_pilot_desired_lean_angles(float &roll_out, float &pitch_out, float angl
     roll_out = (180/M_PI) * atanf(cosf(pitch_out*(M_PI/180))*tanf(roll_out*(M_PI/180)));
 
     // roll_out and pitch_out are returned
+}
+
+static Vector2f air_resistance_bf;
+void update_air_resistance(void)
+{
+	const float euler_roll_angle = ahrs_roll_rad();
+	const float euler_pitch_angle = ahrs_pitch_rad();
+	const float pilot_cos_pitch_target = cosf(euler_pitch_angle);
+	const float pilot_accel_rgt = GRAVITY_MSS * tanf(euler_roll_angle)/pilot_cos_pitch_target;
+	const float pilot_accel_fwd = -GRAVITY_MSS * tanf(euler_pitch_angle);
+
+	air_resistance_bf.x=pilot_accel_fwd - (accel_ef.x*cos_yaw + accel_ef.y*sin_yaw);
+	air_resistance_bf.y=pilot_accel_rgt - (-accel_ef.x*sin_yaw + accel_ef.y*cos_yaw);
+	air_resistance_bf=_air_resistance_filter.apply(air_resistance_bf);
+}
+
+void get_air_resistance_lean_angles(float &roll_d, float &pitch_d, float angle_max, float gain)
+{
+    float angle_limit=angle_max/constrain_float(air_resistance_bf.length()*gain, 1.0f, 3.0f);
+    float total_in = norm(roll_d, pitch_d);
+    if (total_in > angle_limit) {
+		float ratio = angle_limit / total_in;
+		roll_d *= ratio;
+		pitch_d *= ratio;
+	}
 }
 
 /******************take off functions start*********************/
@@ -2713,6 +2981,22 @@ void zero_throttle_and_relax_ac(void)
     attitude->set_throttle_out_unstabilized(0.0f, true, param->throttle_filt.value);
 }
 
+static mavlink_message_t msg_scaled_imu;
+static mavlink_scaled_imu_t scaled_imu;
+void offboard_callback(void){
+	if(offboard_connected){
+		scaled_imu.time_boot_ms=HAL_GetTick();
+		scaled_imu.xacc=(uint16_t)(get_accel_filt().x*1000);
+		scaled_imu.yacc=(uint16_t)(get_accel_filt().y*1000);
+		scaled_imu.zacc=(uint16_t)(get_accel_filt().z*1000);
+		scaled_imu.xgyro=(uint16_t)(get_gyro_filt().x*1000);
+		scaled_imu.ygyro=(uint16_t)(get_gyro_filt().y*1000);
+		scaled_imu.zgyro=(uint16_t)(get_gyro_filt().z*1000);
+		mavlink_msg_scaled_imu_encode(mavlink_system.sysid, mavlink_system.compid, &msg_scaled_imu, &scaled_imu);
+		mavlink_send_buffer(MAVLINK_COMM_0, &msg_scaled_imu);
+	}
+}
+
 /********回调函数：在SD卡中写入日志数据名称******
  * ***********************************
  * 注意Logger_Write()函数最多可以一次记录128个字符的字符串
@@ -2735,7 +3019,7 @@ void Logger_Cat_Callback(void){
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_Z
 			"barofilt", "alt_t", "pos_z", "vel_z_t", "vel_z", "rf_alt", "rf_alt_t", "rtk_alt", "rtk_velz");
 	osDelay(1);
-	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_XY
+	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s ",//LOG_POS_XY
 			"vt_z", "odom_x", "pos_x", "vel_x", "odom_y", "pos_y", "vel_y");
 	osDelay(1);
 	sdlog->Logger_Write("%8s %8s %8s %8s %8s %8s %8s %8s %8s ",//LOG_VEL_PID_XYZ
@@ -2767,16 +3051,16 @@ void Logger_Cat_Callback(void){
  * ***********************************/
 void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8ld %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_SENSOR
-			HAL_GetTick(), get_accel_correct().x, get_accel_correct().y, get_accel_correct().z,	get_gyro_correct().x, get_gyro_correct().y, get_gyro_correct().z);
+			HAL_GetTick(), air_resistance_bf.length(), get_accel_filt().y, get_accel_filt().z, get_gyro_filt().x, get_gyro_filt().y, get_gyro_filt().z);
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8d ",//LOG_SENSOR
-			get_mag_correct().x, get_mag_correct().y, get_mag_correct().z, spl06_data.baro_alt, get_batt_volt(), get_batt_current(), gps_position->satellites_used);
+			get_mag_filt().x, get_mag_filt().y, get_mag_filt().z, spl06_data.baro_alt, get_batt_volt(), get_batt_current(), gps_position->satellites_used);
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_EULER
 			ahrs_pitch_rad(), ahrs_roll_rad(), ahrs_yaw_rad(), ahrs_pitch_deg(), ahrs_roll_deg(), ahrs_yaw_deg());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_ACCEL_EARTH_FRAME and VIB
-			attitude->rate_bf_targets().x, attitude->rate_bf_targets().y, attitude->rate_bf_targets().z, get_accel_ef().x, get_accel_ef().y, get_accel_ef().z, get_vib_value(), get_vib_angle_z());
+			attitude->rate_bf_targets().x, attitude->rate_bf_targets().y, attitude->rate_bf_targets().z, get_accel_ef().x, get_accel_ef().y, -(get_accel_ef().z + GRAVITY_MSS) * 100.0f, get_vib_value(), get_vib_angle_z());
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_POS_Z
 			get_baroalt_filt(), pos_control->get_pos_target().z, get_pos_z(), pos_control->get_vel_target_z(), get_vel_z(), get_rangefinder_alt(), get_rangefinder_alt_target(), get_ned_pos_z(), get_ned_vel_z());
@@ -2849,10 +3133,10 @@ void debug(void){
 //	usb_printf("ax:%f, ay:%f, az:%f, accelx:%f,accely:%f,accelz:%f\n ",dcm_matrix.a.x, dcm_matrix.a.y, dcm_matrix.a.z, accel_filt.x,accel_filt.y,accel_filt.z);
 //	usb_printf("ax:%f,ay:%f,az:%f\n",mpu9250_data.accf.x,mpu9250_data.accf.y,mpu9250_data.accf.z);
 //	usb_printf("%f,%f,%f\n",mpu9250_data.gyrof.x, mpu9250_data.gyrof.y, mpu9250_data.gyrof.z);
-//	usb_printf("%f,%f,%f\n",attitude->get_att_target_euler_d().x, attitude->get_att_target_euler_d().y, attitude->get_att_target_euler_d().z);
+//	usb_printf("optical:%f,%f\n",opticalflow_state.pos.x, opticalflow_state.pos.y);
 //	usb_printf("hover:%f|%f\n",param->t_hover_update_min.value,param->t_hover_update_max.value);
 //	usb_printf("m:%d|%d\n",param.motor_type.value, param.robot_type.value);
-//	usb_printf("pos_x:%f|%f,pos_y:%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());
+//	usb_printf("pos:%f|%f|%f|%f\n",get_pos_x(),get_vel_x(),get_pos_y(),get_vel_y());
 //	usb_printf("pitch:%f|roll:%f|yaw:%f\n", pitch_rad, roll_rad, yaw_rad);
 //	usb_printf("vib:%f\n", param->vib_land.value);
 //	s2_printf("x:%f,y:%f\n", x_target, y_target);

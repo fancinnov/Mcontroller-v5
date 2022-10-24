@@ -6,13 +6,16 @@
  */
 #include "maincontroller.h"
 
-static float x_target=0.0f,y_target=0.0f,target_yaw=0.0f,vx_target_bf=0.0f,vy_target_bf=0.0f;
-static Vector2f vel_latlon_t,vel_latlon_c,vel_latlon_d;
+static float target_yaw=0.0f;
 static uint16_t target_point=0;
 static Location gnss_target_pos;
 static Vector3f ned_target_pos;
-static Vector2f ned_dis_2d;
-const float vmax=500.0f, amax=120.0f;
+static Vector2f ned_dis_2d, ned_takeoff_pos;
+const float vmax=500.0f, amax=300.0f;
+static bool use_gcs=false;
+static bool execute_return=false;
+static bool execute_land=false;
+static bool reach_return_alt=false;
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -33,12 +36,20 @@ void mode_poshold(void){
 	AltHoldModeState althold_state;
 	float takeoff_climb_rate = 0.0f;
 	float ch7=get_channel_7();
+	update_air_resistance();
+
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
-	pos_control->set_speed_xy(vmax);
-	pos_control->set_accel_xy(amax);
-	float dv=amax*_dt;//最大加速度amax
+	pos_control->set_speed_xy(param->poshold_vel_max.value);
+	pos_control->set_accel_xy(param->poshold_accel_max.value);
+
+	if((use_gcs&&!get_gcs_connected())||(get_batt_volt()<param->lowbatt_return_volt.value)){//电量较低或地面站断开连接，强制返航
+		execute_return=true;
+	}
+	if(get_batt_volt()<param->lowbatt_land_volt.value){//电量过低，强制降落
+		execute_land=true;
+	}
 
 	// get pilot desired lean angles
 	float target_roll, target_pitch;
@@ -77,9 +88,8 @@ void mode_poshold(void){
 		attitude->reset_rate_controller_I_terms();
 		attitude->set_yaw_target_to_current_heading();
 		target_yaw=ahrs_yaw_deg();
-		x_target=get_ned_pos_x();
-		y_target=get_ned_pos_y();
-		pos_control->set_xy_target(x_target, y_target);
+		pos_control->set_xy_target(get_pos_x(), get_pos_y());
+		pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
 		pos_control->relax_alt_hold_controllers(0.0f);   // forces throttle output to go to zero
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
 		break;
@@ -91,12 +101,23 @@ void mode_poshold(void){
 
 		// initiate take-off
 		if (!takeoff_running()) {
+			if(execute_return||execute_land){
+				disarm_motors();
+				break;
+			}
 			takeoff_start(constrain_float(param->pilot_takeoff_alt.value,0.0f,1000.0f));
 			// indicate we are taking off
 			set_land_complete(false);
 			// clear i terms
 			set_throttle_takeoff();
 			set_thr_force_decrease(false);//起飞时禁止限制油门
+			ned_takeoff_pos.x=get_pos_x();
+			ned_takeoff_pos.y=get_pos_y();
+			if(get_gcs_connected()){
+				use_gcs=true;
+			}else{
+				use_gcs=false;
+			}
 		}
 
 		// get take-off adjusted pilot and takeoff climb rates
@@ -104,29 +125,16 @@ void mode_poshold(void){
 
 		// call attitude controller
 		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
+			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
+			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
-			x_target=get_ned_pos_x();
-			y_target=get_ned_pos_y();
-			pos_control->set_xy_target(x_target, y_target);
+			pos_control->set_xy_target(get_pos_x(), get_pos_y());
+			pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
 		}else{//定位模式(下挡位)
-			vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
-			vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
-			if(abs(vx_target_bf)<10.0f){
-				vx_target_bf=0.0f;
-			}
-			if(abs(vy_target_bf)<10.0f){
-				vy_target_bf=0.0f;
-			}
-			vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-			vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-			vel_latlon_d=vel_latlon_t-vel_latlon_c;
-			if(vel_latlon_d.length()>dv){
-				vel_latlon_c+=vel_latlon_d.normalized()*dv;
-			}else{
-				vel_latlon_c=vel_latlon_t;
-			}
-			pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
+			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+			pos_control->calc_desired_velocity(_dt);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 		}
 		// call position controller
@@ -137,6 +145,9 @@ void mode_poshold(void){
 
 	case AltHold_Landed:
 		robot_state=STATE_LANDED;
+		execute_return=false;
+		execute_land=false;
+		reach_return_alt=false;
 		// set motors to spin-when-armed if throttle below deadzone, otherwise full range (but motors will only spin at min throttle)
 		if (target_climb_rate < 0.0f) {
 			motors->set_desired_spool_state(Motors::DESIRED_SPIN_WHEN_ARMED);
@@ -150,9 +161,8 @@ void mode_poshold(void){
 		attitude->set_yaw_target_to_current_heading();
 		target_yaw=ahrs_yaw_deg();
 		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
-		x_target=get_ned_pos_x();
-		y_target=get_ned_pos_y();
-		pos_control->set_xy_target(x_target, y_target);
+		pos_control->set_xy_target(get_pos_x(), get_pos_y());
+		pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
 		pos_control->relax_alt_hold_controllers(0.0f);   // forces throttle output to go to zero
 		pos_control->update_z_controller(get_pos_z(), get_vel_z());
 		break;
@@ -161,77 +171,94 @@ void mode_poshold(void){
 		robot_state=STATE_FLYING;
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
-		// call attitude controller
-		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
+		if(!get_gps_state()){//定位丢失，强制手动
+			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
-			x_target=get_ned_pos_x();
-			y_target=get_ned_pos_y();
-			pos_control->set_xy_target(x_target, y_target);
-		}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-			vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
-			vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
-			if(abs(vx_target_bf)<10.0f){
-				vx_target_bf=0.0f;
+			pos_control->set_xy_target(get_pos_x(), get_pos_y());
+			pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
+			if(execute_return||execute_land){//如果是正在执行返航过程中定位丢失，那么强制降落
+				target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
 			}
-			if(abs(vy_target_bf)<10.0f){
-				vy_target_bf=0.0f;
-			}
-			vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-			vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-			vel_latlon_d=vel_latlon_t-vel_latlon_c;
-			if(vel_latlon_d.length()>dv){
-				vel_latlon_c+=vel_latlon_d.normalized()*dv;
-			}else{
-				vel_latlon_c=vel_latlon_t;
-			}
-			pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
+		}else if(execute_land){
+			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+			pos_control->calc_desired_velocity(_dt);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
-		}else{//巡线模式
-			if(sdlog->gnss_point_num>0){
-				if(target_point<sdlog->gnss_point_num){
-					gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
-					gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
-					ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
-					ned_dis_2d.x=ned_target_pos.x-get_pos_x();
-					ned_dis_2d.y=ned_target_pos.y-get_pos_y();
-					if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
-						target_point++;
+			target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
+		}else if(execute_return){
+			pos_control->set_speed_xy(param->mission_vel_max.value);
+			pos_control->set_accel_xy(param->mission_accel_max.value);
+			if(reach_return_alt){
+				pos_control->set_xy_target(ned_takeoff_pos.x, ned_takeoff_pos.y);
+				ned_dis_2d.x=ned_takeoff_pos.x-get_pos_x();
+				ned_dis_2d.y=ned_takeoff_pos.y-get_pos_y();
+				if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
+					execute_land=true;
+				}else{
+					if(ned_dis_2d.y>=0){
+						target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
 					}else{
-						if(ned_dis_2d.y>=0){
-							target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
-						}else{
-							target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
-						}
+						target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
 					}
 				}
-				//TODO:巡线结束后需要执行的策略
-				pos_control->set_xy_target(ned_target_pos.x, ned_target_pos.y);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{
-				vx_target_bf=-get_channel_pitch()*vmax;//最大速度500cm/s
-				vy_target_bf=get_channel_roll()*vmax;//最大速度500cm/s
-				if(abs(vx_target_bf)<10.0f){
-					vx_target_bf=0.0f;
+				if(get_pos_z()>=param->alt_return.value){
+					reach_return_alt=true;
 				}
-				if(abs(vy_target_bf)<10.0f){
-					vy_target_bf=0.0f;
-				}
-				vel_latlon_t.x=vx_target_bf*ahrs_cos_yaw()-vy_target_bf*ahrs_sin_yaw();
-				vel_latlon_t.y=vx_target_bf*ahrs_sin_yaw()+vy_target_bf*ahrs_cos_yaw();
-				vel_latlon_d=vel_latlon_t-vel_latlon_c;
-				if(vel_latlon_d.length()>dv){
-					vel_latlon_c+=vel_latlon_d.normalized()*dv;
-				}else{
-					vel_latlon_c=vel_latlon_t;
-				}
-				pos_control->set_desired_velocity_xy(vel_latlon_c.x,vel_latlon_c.y);
+				pos_control->set_alt_target(param->alt_return.value);
+				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+			}
+			target_climb_rate=0.0f;
+		}else{
+			// call attitude controller
+			if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
+				get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
+				target_yaw+=target_yaw_rate*_dt;
+				attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+				pos_control->set_xy_target(get_pos_x(), get_pos_y());
+				pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
+			}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
+				pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+				pos_control->calc_desired_velocity(_dt);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				target_yaw+=target_yaw_rate*_dt;
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+			}else{//巡线模式
+				pos_control->set_speed_xy(param->mission_vel_max.value);
+				pos_control->set_accel_xy(param->mission_accel_max.value);
+				if(sdlog->gnss_point_num>0){
+					if(target_point<sdlog->gnss_point_num){
+						gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
+						gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
+						ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
+						ned_dis_2d.x=ned_target_pos.x-get_pos_x();
+						ned_dis_2d.y=ned_target_pos.y-get_pos_y();
+						if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
+							target_point++;
+						}else{
+							if(ned_dis_2d.y>=0){
+								target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+							}else{
+								target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+							}
+						}
+					}
+					//TODO:巡线结束后需要执行的策略
+					pos_control->set_xy_target(ned_target_pos.x, ned_target_pos.y);
+					pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+					attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+				}else{
+					pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+					pos_control->calc_desired_velocity(_dt);
+					pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+					target_yaw+=target_yaw_rate*_dt;
+					attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+				}
 			}
 		}
 

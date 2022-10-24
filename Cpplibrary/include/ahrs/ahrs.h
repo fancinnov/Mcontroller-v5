@@ -17,9 +17,9 @@ class AHRS{
 
 public:
 	AHRS(float dt);
-	void set_rotate_angle(const Vector3f &euler_rad);
 	void update(bool &get_mag, bool &get_mav_yaw);
 	bool is_initialed(void){return initialed;}
+	void set_declination(float rad){declination=rad;}
 	void reset(void){
 		initialed=false;
 	}
@@ -52,10 +52,10 @@ private:
 						0, 0, 0.4};
 
 	float ekf_gain;
-
+	float declination=0.0f;
 	Vector2f mag_ef_2d;
 	Vector3f mag_bf;
-	Matrix3f rotate_angle;
+
 	Vector3f accel_average, accel_variance;
 	Vector3f accel_array[var_length];
 };
