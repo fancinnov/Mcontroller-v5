@@ -3051,7 +3051,7 @@ void Logger_Cat_Callback(void){
  * ***********************************/
 void Logger_Data_Callback(void){
 	sdlog->Logger_Write("%8ld %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f ",//LOG_SENSOR
-			HAL_GetTick(), air_resistance_bf.length(), get_accel_filt().y, get_accel_filt().z, get_gyro_filt().x, get_gyro_filt().y, get_gyro_filt().z);
+			HAL_GetTick(), get_accel_filt().x, get_accel_filt().y, get_accel_filt().z, get_gyro_filt().x, get_gyro_filt().y, get_gyro_filt().z);
 	osDelay(1);
 	sdlog->Logger_Write("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8d ",//LOG_SENSOR
 			get_mag_filt().x, get_mag_filt().y, get_mag_filt().z, spl06_data.baro_alt, get_batt_volt(), get_batt_current(), gps_position->satellites_used);
