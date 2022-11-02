@@ -35,6 +35,7 @@ void mode_stabilize(void){
 		target_yaw=ahrs_yaw_deg();
 		motors->output();
 		robot_state=STATE_STOP;
+		motors_test_update();
 		/*
 		 * 以下为电调校准模式说明:
 		 * (1) 在channel8电机硬件锁定状态下, 将油门推到最高, 偏航推到最左, 持续5s进入电调校准模式;

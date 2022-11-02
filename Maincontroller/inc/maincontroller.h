@@ -61,5 +61,6 @@ void takeoff_start(float alt_cm);
 void set_throttle_takeoff(void);
 void get_takeoff_climb_rates(float& pilot_climb_rate,  float& takeoff_climb_rate);
 float get_surface_tracking_climb_rate(float target_rate, float current_alt_target, float dt);
+void motors_test_update(void);
 
 #endif /* INC_MAINCONTROLLER_H_ */

@@ -351,7 +351,7 @@ void Loop200hzTask(void *argument)
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
 	  comm_callback();
 	  MAG_Get_Data();
-	  offboard_callback();
+	  usbsend_callback();
 	  /***Do not change code above and add new code below***/
   }
   /* USER CODE END Loop200hzTask */

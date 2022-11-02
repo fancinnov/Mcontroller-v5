@@ -115,6 +115,7 @@ public:
     // pilot input in the -1 ~ +1 range for roll, pitch and yaw. 0~1 range for throttle
 	void                set_radio_passthrough(float roll_input, float pitch_input, float throttle_input, float yaw_input);
 	void 				set_throttle_passthrough_for_motors(float throttle_input);
+	void 				set_throttle_passthrough_for_motor(uint8_t i, float throttle_input);
 
 	// set loop rate. Used to support loop rate as a parameter
 	void                set_loop_rate(float loop_rate) { _loop_rate = loop_rate; _dt=1/loop_rate;}

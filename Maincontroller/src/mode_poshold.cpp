@@ -229,9 +229,9 @@ void mode_poshold(void){
 				target_yaw+=target_yaw_rate*_dt;
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{//巡线模式
-				pos_control->set_speed_xy(param->mission_vel_max.value);
-				pos_control->set_accel_xy(param->mission_accel_max.value);
 				if(sdlog->gnss_point_num>0){
+					pos_control->set_speed_xy(param->mission_vel_max.value);
+					pos_control->set_accel_xy(param->mission_accel_max.value);
 					if(target_point<sdlog->gnss_point_num){
 						gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
 						gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
