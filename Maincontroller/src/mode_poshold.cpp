@@ -9,13 +9,13 @@
 static float target_yaw=0.0f;
 static uint16_t target_point=0;
 static Location gnss_target_pos;
-static Vector3f ned_target_pos;
-static Vector2f ned_dis_2d, ned_takeoff_pos;
-const float vmax=500.0f, amax=300.0f;
+static Vector3f ned_target_pos, ned_last_pos, ned_takeoff_pos;
+static Vector2f ned_dis_2d, ned_dis_2d_smooth;
 static bool use_gcs=false;
 static bool execute_return=false;
 static bool execute_land=false;
 static bool reach_return_alt=false;
+static float smooth_dt=0.0f;
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -37,14 +37,23 @@ void mode_poshold(void){
 	float takeoff_climb_rate = 0.0f;
 	float ch7=get_channel_7();
 	update_air_resistance();
+	Servo_Set_Value(2,1500);
+	Servo_Set_Value(3,1500);
 
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
 	pos_control->set_speed_xy(param->poshold_vel_max.value);
-	pos_control->set_accel_xy(param->poshold_accel_max.value);
+	float vel_2d=sqrtf(sq(get_vel_x(),get_vel_y()));
+	if(vel_2d<500){
+		pos_control->set_accel_xy(param->poshold_accel_max.value);
+	}else if(vel_2d<800){
+		pos_control->set_accel_xy(param->poshold_accel_max.value/2);
+	}else{
+		pos_control->set_accel_xy(param->poshold_accel_max.value/3);
+	}
 
-	if((use_gcs&&!get_gcs_connected())||(get_batt_volt()<param->lowbatt_return_volt.value)){//电量较低或地面站断开连接，强制返航
+	if((use_gcs&&!get_gcs_connected())||get_return()||(get_batt_volt()<param->lowbatt_return_volt.value)){//电量较低或地面站断开连接，强制返航
 		execute_return=true;
 	}
 	if(get_batt_volt()<param->lowbatt_land_volt.value){//电量过低，强制降落
@@ -78,6 +87,10 @@ void mode_poshold(void){
 
 	case AltHold_MotorStopped:
 		robot_state=STATE_STOP;
+		execute_return=false;
+		execute_land=false;
+		reach_return_alt=false;
+		set_return(false);
 		if(robot_state_desired==STATE_FLYING||robot_state_desired==STATE_TAKEOFF){
 			if(target_climb_rate<=0){//油门在低位保证安全
 				arm_motors();
@@ -113,6 +126,7 @@ void mode_poshold(void){
 			set_thr_force_decrease(false);//起飞时禁止限制油门
 			ned_takeoff_pos.x=get_pos_x();
 			ned_takeoff_pos.y=get_pos_y();
+			ned_takeoff_pos.z=get_pos_z();
 			if(get_gcs_connected()){
 				use_gcs=true;
 			}else{
@@ -126,16 +140,16 @@ void mode_poshold(void){
 		// call attitude controller
 		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
 			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 			pos_control->set_xy_target(get_pos_x(), get_pos_y());
 			pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
 		}else{//定位模式(下挡位)
-			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
 			pos_control->calc_desired_velocity(_dt);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-			target_yaw+=target_yaw_rate*_dt;
-			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
+			target_yaw=ahrs_yaw_deg();
+			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw_rate);
 		}
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
@@ -148,6 +162,7 @@ void mode_poshold(void){
 		execute_return=false;
 		execute_land=false;
 		reach_return_alt=false;
+		set_return(false);
 		// set motors to spin-when-armed if throttle below deadzone, otherwise full range (but motors will only spin at min throttle)
 		if (target_climb_rate < 0.0f) {
 			motors->set_desired_spool_state(Motors::DESIRED_SPIN_WHEN_ARMED);
@@ -172,8 +187,8 @@ void mode_poshold(void){
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 
 		if(!get_gps_state()){//定位丢失，强制手动
-			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
 			target_yaw+=target_yaw_rate*_dt;
+			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
 			attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 			pos_control->set_xy_target(get_pos_x(), get_pos_y());
 			pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
@@ -181,19 +196,20 @@ void mode_poshold(void){
 				target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
 			}
 		}else if(execute_land){
-			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+			target_yaw+=target_yaw_rate*_dt;
+			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
 			pos_control->calc_desired_velocity(_dt);
 			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-			target_yaw+=target_yaw_rate*_dt;
 			attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			target_climb_rate=-constrain_float(param->auto_land_speed.value, 0.0f, param->pilot_speed_dn.value);//设置降落速度cm/s
 		}else if(execute_return){
 			pos_control->set_speed_xy(param->mission_vel_max.value);
 			pos_control->set_accel_xy(param->mission_accel_max.value);
 			if(reach_return_alt){
-				pos_control->set_xy_target(ned_takeoff_pos.x, ned_takeoff_pos.y);
-				ned_dis_2d.x=ned_takeoff_pos.x-get_pos_x();
-				ned_dis_2d.y=ned_takeoff_pos.y-get_pos_y();
+				ned_target_pos.x=ned_takeoff_pos.x;
+				ned_target_pos.y=ned_takeoff_pos.y;
+				ned_dis_2d.x=ned_target_pos.x-get_pos_x();
+				ned_dis_2d.y=ned_target_pos.y-get_pos_y();
 				if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
 					execute_land=true;
 				}else{
@@ -202,49 +218,83 @@ void mode_poshold(void){
 					}else{
 						target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
 					}
+					smooth_dt+=_dt;
+					ned_dis_2d.x=ned_target_pos.x-ned_last_pos.x;//重新计算当前目标与上一个目标点的距离
+					ned_dis_2d.y=ned_target_pos.y-ned_last_pos.y;
+					ned_dis_2d_smooth=ned_dis_2d.normalized()*(param->mission_vel_max.value*smooth_dt+param->mission_accel_max.value*smooth_dt*smooth_dt/2);
+					if(ned_dis_2d_smooth.length()<ned_dis_2d.length()){//将目标点进行平滑修正
+						ned_target_pos.x=ned_last_pos.x+ned_dis_2d_smooth.x;
+						ned_target_pos.y=ned_last_pos.y+ned_dis_2d_smooth.y;
+					}
 				}
+				pos_control->set_xy_target(ned_target_pos.x, ned_target_pos.y);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{
-				if(get_pos_z()>=param->alt_return.value){
+				float return_alt_cm=ned_takeoff_pos.z+param->alt_return.value;
+				float delta_cm=abs(get_pos_z()-return_alt_cm);
+				if(delta_cm<100){//距离目标高度小于1m认为到达
 					reach_return_alt=true;
+					ned_last_pos.x=get_pos_x();
+					ned_last_pos.y=get_pos_y();
+					smooth_dt=0.0f;
 				}
-				pos_control->set_alt_target(param->alt_return.value);
+				if(get_pos_z()<return_alt_cm){
+					target_climb_rate=param->pilot_speed_up.value;
+				}else{
+					target_climb_rate=-param->pilot_speed_dn.value;
+				}
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}
-			target_climb_rate=0.0f;
 		}else{
 			// call attitude controller
 			if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
-				get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
 				target_yaw+=target_yaw_rate*_dt;
+				get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
 				attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
 				pos_control->set_xy_target(get_pos_x(), get_pos_y());
 				pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
 			}else if(ch7>0.3&&ch7<0.7){//定位模式(中挡位)
-				pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+				target_yaw+=target_yaw_rate*_dt;
+				pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
 				pos_control->calc_desired_velocity(_dt);
 				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-				target_yaw+=target_yaw_rate*_dt;
 				attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 			}else{//巡线模式
 				if(sdlog->gnss_point_num>0){
 					pos_control->set_speed_xy(param->mission_vel_max.value);
 					pos_control->set_accel_xy(param->mission_accel_max.value);
 					if(target_point<sdlog->gnss_point_num){
+						if(target_point==0){
+							gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[0].x*1e7);
+							gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[0].y*1e7);
+							ned_last_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
+							smooth_dt=0.0f;
+							target_point++;
+						}
 						gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[target_point].x*1e7);
 						gnss_target_pos.lng=(int32_t)(sdlog->gnss_point[target_point].y*1e7);
 						ned_target_pos=location_3d_diff_NED(get_gnss_origin_pos(), gnss_target_pos)*100;//cm
 						ned_dis_2d.x=ned_target_pos.x-get_pos_x();
 						ned_dis_2d.y=ned_target_pos.y-get_pos_y();
 						if(ned_dis_2d.length()<200){//距离目标点小于2m认为到达
+							ned_last_pos=ned_target_pos;
 							target_point++;
+							smooth_dt=0.0f;
 						}else{
 							if(ned_dis_2d.y>=0){
 								target_yaw=acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
 							}else{
 								target_yaw=-acosf(ned_dis_2d.x/ned_dis_2d.length())/M_PI*180;
+							}
+							smooth_dt+=_dt;
+							ned_dis_2d.x=ned_target_pos.x-ned_last_pos.x;//重新计算当前目标与上一个目标点的距离
+							ned_dis_2d.y=ned_target_pos.y-ned_last_pos.y;
+							ned_dis_2d_smooth=ned_dis_2d.normalized()*(param->mission_vel_max.value*smooth_dt+param->mission_accel_max.value*smooth_dt*smooth_dt/2);
+							if(ned_dis_2d_smooth.length()<ned_dis_2d.length()){//将目标点进行平滑修正
+								ned_target_pos.x=ned_last_pos.x+ned_dis_2d_smooth.x;
+								ned_target_pos.y=ned_last_pos.y+ned_dis_2d_smooth.y;
 							}
 						}
 					}
@@ -253,10 +303,10 @@ void mode_poshold(void){
 					pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
 					attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 				}else{
-					pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, _dt);
+					target_yaw+=target_yaw_rate*_dt;
+					pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
 					pos_control->calc_desired_velocity(_dt);
 					pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-					target_yaw+=target_yaw_rate*_dt;
 					attitude->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw, true);
 				}
 			}

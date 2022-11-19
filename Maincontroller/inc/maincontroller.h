@@ -53,7 +53,9 @@ void get_air_resistance_lean_angles(float &roll_d, float &pitch_d, float angle_m
 float get_pilot_desired_yaw_rate(float stick_angle);
 float get_pilot_desired_throttle(float throttle_control, float thr_mid);
 float get_pilot_desired_climb_rate(float throttle_control);
-void set_takeoff(bool set);
+void set_return(bool set);
+bool get_return(void);
+void set_takeoff(void);
 bool get_takeoff(void);
 bool takeoff_running(void);
 bool takeoff_triggered( float target_climb_rate);

@@ -20,6 +20,7 @@ public:
 	void update(bool &get_mag, bool &get_mav_yaw);
 	bool is_initialed(void){return initialed;}
 	void set_declination(float rad){declination=rad;}
+	float get_declination(void){return declination;}
 	void reset(void){
 		initialed=false;
 	}

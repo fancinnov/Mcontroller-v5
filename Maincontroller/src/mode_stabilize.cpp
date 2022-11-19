@@ -6,6 +6,7 @@
  */
 #include "maincontroller.h"
 
+static float target_yaw=0.0f;
 bool mode_stabilize_init(void){
 	// if landed and the mode we're switching from does not have manual throttle and the throttle stick is too high
 	if (motors->get_armed() && ap->land_complete && !has_manual_throttle() &&
@@ -16,13 +17,13 @@ bool mode_stabilize_init(void){
 	// set target altitude to zero for reporting
 	pos_control->set_alt_target(0);
 	set_manual_throttle(true);//设置为手动油门
+	target_yaw=ahrs_yaw_deg();
 	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
 	usb_printf("switch mode stabilize!\n");
 	return true;
 }
 
 static int16_t esc_counter=0, esc_delay=0;
-static float target_yaw=0.0f;
 void mode_stabilize(void){
 	float target_roll, target_pitch;
 	float target_yaw_rate;

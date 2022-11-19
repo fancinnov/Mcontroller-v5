@@ -81,13 +81,13 @@
 #define USE_MAG 1 // if use mag, set 1; if not use mag, set 0;
 
 //配置GPS
-#define USE_GPS 0 // if use gps, set 1; if not use gps, set 0;
+#define USE_GPS 1 // if use gps, set 1; if not use gps, set 0;
 
 //配置UWB
-#define USE_UWB 1 // if use uwb, set 1; if don't use uwb, set 0;
+#define USE_UWB 0 // if use uwb, set 1; if don't use uwb, set 0;
 
 //配置光流
-#define USE_FLOW 1 // if use optical flow, set 1; if don't use optical flow, set 0;
+#define USE_FLOW 0 // if use optical flow, set 1; if don't use optical flow, set 0;
 
 //配置里程计
 #define USE_ODOMETRY 0 // if use odometry, set 1; if don't use odometry, set 0;
@@ -112,6 +112,6 @@
 #endif
 
 #define VERSION_HARDWARE 573
-#define VERSION_FIRMWARE 2022110101
+#define VERSION_FIRMWARE 2022111801
 
 #endif /* INCLUDE_CONFIG_H_ */

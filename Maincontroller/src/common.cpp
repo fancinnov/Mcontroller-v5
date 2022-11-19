@@ -52,10 +52,8 @@ void mode_update(void){
 	if(ch5>0.9){//无人车模式
 		robot_state_desired=STATE_DRIVE;
 	}else{//无人机模式
-		if(robot_main_mode==MODE_UGV){
+		if(robot_state==STATE_DRIVE){
 			robot_state_desired=STATE_FLYING;//从UGV切换过来时，自动起飞
-		}else{
-			robot_state_desired=STATE_NONE;//清空状态标志
 		}
 	}
 	switch(robot_state){
@@ -81,15 +79,15 @@ void mode_update(void){
 				}
 			}
 		}else if(ch6>0.3){
-			if(robot_sub_mode!=MODE_PERCH){
-				if(mode_perch_init()){
-					robot_sub_mode=MODE_PERCH;
+			if(robot_sub_mode!=MODE_ALTHOLD){
+				if(mode_althold_init()){
+					robot_sub_mode=MODE_ALTHOLD;
 				}
 			}
 		}else{
-			if(robot_sub_mode!=MODE_AUTONAV){
-				if(mode_autonav_init()){
-					robot_sub_mode=MODE_AUTONAV;
+			if(robot_sub_mode!=MODE_POSHOLD){
+				if(mode_poshold_init()){
+					robot_sub_mode=MODE_POSHOLD;
 				}
 			}
 		}

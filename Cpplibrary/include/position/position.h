@@ -303,7 +303,7 @@ public:
 
     /// set pilot desired acceleration in degrees
 	//   dt should be the time (in seconds) since the last call to this function
-	void set_pilot_desired_acceleration(float roll_angle, float pitch_angle, float dt);
+    void set_pilot_desired_acceleration(float roll_angle, float pitch_angle, float yaw_angle, float dt);
 	void reset_predicted_accel(float vx_ef, float vy_ef);
     /// get maximum lean angle when using loiter
     void calc_desired_velocity(float nav_dt);

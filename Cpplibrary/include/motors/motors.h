@@ -62,6 +62,8 @@ public:
     	MOTOR_FRAME_TYPE_UNDEFINED = 0,
         MOTOR_FRAME_TYPE_X = 1,
         MOTOR_FRAME_TYPE_H = 2,
+		MOTOR_FRAME_TYPE_X8 = 3,
+		MOTOR_FRAME_TYPE_M8 = 4,
     };
 
     enum motor_pwm_type {

@@ -8,15 +8,12 @@
 
 static float target_yaw=0.0f;
 bool mode_althold_init(void){
-	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
-		Buzzer_set_ring_type(BUZZER_ERROR);
-		return false;
-	}
 	if(!pos_control->is_active_z()){
 		// initialize position and desired velocity
 		pos_control->set_alt_target_to_current_alt();
 		pos_control->set_desired_velocity_z(get_vel_z());
 	}
+	target_yaw=ahrs_yaw_deg();
 	set_manual_throttle(false);//设置为自动油门
 	Buzzer_set_ring_type(BUZZER_MODE_SWITCH);
 	usb_printf("switch mode althold!\n");
@@ -92,9 +89,9 @@ void mode_althold(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		target_yaw+=target_yaw_rate*_dt;
 		get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
-		attitude->input_euler_angle_roll_pitch_yaw(target_roll, target_pitch, target_yaw, true);
+		target_yaw=ahrs_yaw_deg();
+		attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
