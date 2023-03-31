@@ -129,8 +129,6 @@ int main(void)
   MX_TIM10_Init();
   MX_TIM13_Init();
   MX_TIM14_Init();
-  MX_ADC2_Init();
-  MX_ADC3_Init();
   MX_CAN2_Init();
   /* USER CODE BEGIN 2 */
   RxBuffer_comm1_DMA=(uint8_t*)pvPortMalloc(URAT_DMA_Buffer_length*sizeof(uint8_t));

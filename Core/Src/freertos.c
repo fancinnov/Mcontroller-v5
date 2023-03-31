@@ -63,14 +63,14 @@ const osThreadAttr_t initTask_attributes = {
 osThreadId_t loop200hzTaskHandle;
 const osThreadAttr_t loop200hzTask_attributes = {
   .name = "loop200hzTask",
-  .stack_size = 500 * 4,
+  .stack_size = 400 * 4,
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for heartbeatTask */
 osThreadId_t heartbeatTaskHandle;
 const osThreadAttr_t heartbeatTask_attributes = {
   .name = "heartbeatTask",
-  .stack_size = 500 * 4,
+  .stack_size = 400 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for loop400hzTask */
@@ -84,21 +84,21 @@ const osThreadAttr_t loop400hzTask_attributes = {
 osThreadId_t loop100hzTaskHandle;
 const osThreadAttr_t loop100hzTask_attributes = {
   .name = "loop100hzTask",
-  .stack_size = 600 * 4,
+  .stack_size = 300 * 4,
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for buzzerTask */
 osThreadId_t buzzerTaskHandle;
 const osThreadAttr_t buzzerTask_attributes = {
   .name = "buzzerTask",
-  .stack_size = 500 * 4,
+  .stack_size = 300 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for mavSendTask */
 osThreadId_t mavSendTaskHandle;
 const osThreadAttr_t mavSendTask_attributes = {
   .name = "mavSendTask",
-  .stack_size = 500 * 4,
+  .stack_size = 400 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for loop50hzTask */
@@ -314,6 +314,7 @@ void InitTask(void *argument)
   IMU_Init();
   MAG_Init();
   while(BARO_Init());
+  vl53lxx_init();
   motors_init();
   attitude_init();
   pos_init();
@@ -351,6 +352,7 @@ void Loop200hzTask(void *argument)
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
 	  comm_callback();
 	  MAG_Get_Data();
+	  vl53lxx_update();
 	  usbsend_callback();
 	  /***Do not change code above and add new code below***/
   }
@@ -508,7 +510,6 @@ void Loop50hzTask(void *argument)
 	  osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
 	  RC_Input_Loop();
 	  adc_update();
-	  opticalflow_update();
 	  uwb_position_update();
 	  /***Do not change code above and add new code below***/
   }
@@ -552,7 +553,7 @@ void GPSTask(void *argument)
 #if USE_GPS==0
 	osThreadTerminate(gpsTaskHandle);
 #endif
-	if(!GPS_Init(UM482, gnss_comm1)){// GPS_Init() task will block 10s
+	if(!GPS_Init(UM482)){// GPS_Init() task will block 10s
 		osThreadTerminate(gpsTaskHandle);
 	}
     uint8_t state_flag=0;
@@ -617,7 +618,7 @@ void TestTask(void *argument){
 	for(;;)							// NOTED: if codes need to loop, must add into for(;;){} or while(1){} or some other looper.
 	{
 	  debug();
-//	  vTaskGetInfo(sdLogTaskHandle, &taskstatus, pdTRUE, eInvalid);
+//	  vTaskGetInfo(initTaskHandle, &taskstatus, pdTRUE, eInvalid);
 //	  usb_printf("freeHeapSize:%d, freeStackSize:%d\n", xPortGetFreeHeapSize(),taskstatus.usStackHighWaterMark);
 	  osDelay(10);
 	}

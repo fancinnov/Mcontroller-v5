@@ -35,6 +35,25 @@ private:
 
 	Quaternion quaternion=Quaternion();
 
+	float q0=1.0f, q1=0.0f, q2=0.0f, q3=0.0f;
+	float wx=0.0f, wy=0.0f, wz=0.0f;
+	Vector3f accel;
+	float accel_length=0.0f;
+	float accel_error_gain=1.0f;
+	float ax=0.0f, ay=0.0f, az=0.0f;
+	float Ak[4*4]={0};
+	float AkT[4*4]={0};
+	float temp33[3*3]={0}, temp33inv[3*3]={0};
+	float q_factor1[4]={0};
+	float Hk1[3*4]={0};
+	float Hk1T[4*3]={0};
+	float zk1_hk1[3*1]={0};
+	float mx=1.0f, my=0.0f, mz=0.0f;
+	float q_factor2[4]={0};
+	float Hk2[3*4]={0};
+	float Hk2T[4*3]={0};
+	float zk2_hk2[3*1]={0};
+
 	float P_posteriori[4*4]={ 0.125, 0.0003, 0.0003, 0.0003,
 							 0.0003, 0.125, 0.0003, 0.0003,
 							 0.0003, 0.0003, 0.125, 0.0003,
@@ -44,7 +63,7 @@ private:
 								0, e6, 0, 0,
 								0, 0, e6, 0,
 								0, 0, 0, e6};
-	float q_priori[4], q_priori_length;
+	float q_priori[4]={0}, q_priori_length=1.0f;
 	float Rk1[3*3] = { 0.8, 0, 0,
 					   0, 0.8, 0,
 					   0, 0, 0.8};

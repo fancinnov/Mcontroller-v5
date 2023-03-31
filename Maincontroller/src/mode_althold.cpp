@@ -27,7 +27,7 @@ void mode_althold(void){
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);//设置z轴最大最小速度
 	pos_control->set_accel_z(param->pilot_accel_z.value);//设置z轴最大加速度
 	update_air_resistance();
-
+	rangefinder_state.enabled=true;
 	// get pilot desired lean angles
 	float target_roll, target_pitch;
 	get_pilot_desired_lean_angles(target_roll, target_pitch, param->angle_max.value, attitude->get_althold_lean_angle_max());//获取摇杆的目标俯仰滚转角

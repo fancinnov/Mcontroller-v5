@@ -52,7 +52,7 @@
 #define MAV_COMM  	0x02 //Mavlink模式
 #define GPS_COMM  	0x03 //GPS模式
 #define TFMINI_COMM 0X04 //TFmini激光测距仪
-#define LC302_COMM 0X05 //LC302光流
+#define LC302_COMM  0X05 //LC302光流
 
 /***************usb+串口配置****************
  * *************COMM_0:USB口***************
@@ -112,6 +112,6 @@
 #endif
 
 #define VERSION_HARDWARE 573
-#define VERSION_FIRMWARE 2022111801
+#define VERSION_FIRMWARE 2023033101
 
 #endif /* INCLUDE_CONFIG_H_ */

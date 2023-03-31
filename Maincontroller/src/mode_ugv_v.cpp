@@ -54,13 +54,13 @@ void mode_ugv_v(void)
 				if(delta_yaw>=0&&delta_yaw<=90){
 					write_gpio1(true);//前进
 					write_gpio2(false);
-					write_gpio3(false);//左转
-					write_gpio4(true);
+					write_gpio3(true);//右转
+					write_gpio4(false);
 				}else if(delta_yaw<0&&delta_yaw>=-90){
 					write_gpio1(true);//前进
 					write_gpio2(false);
-					write_gpio3(true);//右转
-					write_gpio4(false);
+					write_gpio3(false);//左转
+					write_gpio4(true);
 				}else if(delta_yaw<-90&&delta_yaw>-180){
 					write_gpio1(false);//后退
 					write_gpio2(true);

@@ -34,51 +34,28 @@ bool mode_init(void){
 }
 
 /* 模式切换说明：
- * (1) 模式切换分为主模式和子模式, 其中主模式包括空中模式和地面模式由channel5控制, 子模式隶属于主模式由channel6控制;
- * (2) channel5>0.9时为无人车模式, channel5<=0.9时为空中模式;
- * (3) 在空中模式下:
- * 		channel6>0.7为自稳模式;
- * 		0.7>=channel6>0.3为定高模式;
- * 		0.3>=channel6为自主导航模式;
- * (4) 在无人车模式下:
- *		channel6>0.7为遥控直通模式;
- * 		0.7>=channel6>0.3为无人车定速模式;
- * 		0.3>=channel6为无人车定点模式;
+ * (1) 模式切换分为主模式和子模式, 其中主模式由app控制, 子模式隶属于主模式由channel5控制;
+ * (2) 在空中模式下:
+ * 		channel5>0.7为自稳模式;
+ * 		0.7>=channel5>0.3为定高模式;
+ * 		0.3>=channel5为定点模式;
+ * (3) 在无人车模式下:
+ *		channel5>0.7为遥控直通模式;
+ * 		0.7>=channel5>0.3为无人车定速模式;
+ * 		0.3>=channel5为无人车定点模式;
  * */
 //should be run at 400hz
 void mode_update(void){
-	float ch5=get_channel_5();//用于机器人主模态切换
-	float ch6=get_channel_6();//用于机器人子模态切换
-	if(ch5>0.9){//无人车模式
-		robot_state_desired=STATE_DRIVE;
-	}else{//无人机模式
-		if(robot_state==STATE_DRIVE){
-			robot_state_desired=STATE_FLYING;//从UGV切换过来时，自动起飞
-		}
-	}
-	switch(robot_state){
-	case STATE_STOP:
-		if(robot_state_desired==STATE_DRIVE){
-			robot_main_mode=MODE_UGV;
-		}
-		break;
-	case STATE_DRIVE:
-		if(robot_state_desired==STATE_FLYING){
-			robot_main_mode=MODE_AIR;
-		}
-		break;
-	default:
-		break;
-	}
+	float ch5=get_channel_5();//用于机器人子模态切换
 	switch(robot_main_mode){
 	case MODE_AIR:
-		if(ch6>0.7){
+		if(ch5>0.7){
 			if(robot_sub_mode!=MODE_STABILIZE){
 				if(mode_stabilize_init()){
 					robot_sub_mode=MODE_STABILIZE;
 				}
 			}
-		}else if(ch6>0.3){
+		}else if(ch5>0.3){
 			if(robot_sub_mode!=MODE_ALTHOLD){
 				if(mode_althold_init()){
 					robot_sub_mode=MODE_ALTHOLD;
@@ -100,16 +77,17 @@ void mode_update(void){
 		}
 		break;
 	case MODE_SPIDER:
+		robot_state=STATE_CLIMB;
 		break;
 	case MODE_UGV:
 		robot_state=STATE_DRIVE;
-		if(ch6>0.7){
+		if(ch5>0.7){
 			//无人车遥控直通模式
 			if(robot_sub_mode!=MODE_UGV_A){
 				//init()
 				robot_sub_mode=MODE_UGV_A;
 			}
-		}else if(ch6>0.3){
+		}else if(ch5>0.3){
 			//无人车定速模式
 			if(robot_sub_mode!=MODE_UGV_V){
 				//init()

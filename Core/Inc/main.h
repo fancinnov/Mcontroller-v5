@@ -216,6 +216,7 @@ void Error_Handler(void);
 #define UART8_RX_GPIO_Port GPIOE
 #define UART8_TX_Pin GPIO_PIN_1
 #define UART8_TX_GPIO_Port GPIOE
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

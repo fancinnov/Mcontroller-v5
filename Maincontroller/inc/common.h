@@ -22,55 +22,55 @@
 /* ****************Dev code end*********************
  * *************************************************/
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Attitude and Position Control pid parameters // 已设实际参数用于动力较强的机型, 注释中的参数可用于动力适中的机型, 动力越强的机型PID内环越小。  //
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define AC_ATTITUDE_CONTROL_ANGLE_ROLL_P                      8.0f             // default angle P gain for roll 4.5f
-#define AC_ATTITUDE_CONTROL_ANGLE_PITCH_P                     8.0f             // default angle P gain for pitch 4.5f
-#define AC_ATTITUDE_CONTROL_ANGLE_YAW_P                       5.0f             // default angle P gain for yaw 4.5f
+//////////////////////////////////////////////////////////////////////
+// Attitude and Position Control pid parameters // 参数适用于F450机架。  //
+//////////////////////////////////////////////////////////////////////
+#define AC_ATTITUDE_CONTROL_ANGLE_ROLL_P                      4.5f             // default angle P gain for roll 4.5f
+#define AC_ATTITUDE_CONTROL_ANGLE_PITCH_P                     4.5f             // default angle P gain for pitch 4.5f
+#define AC_ATTITUDE_CONTROL_ANGLE_YAW_P                       4.5f             // default angle P gain for yaw 4.5f
 
 // default rate controller PID gains
 #ifndef AC_ATC_MULTI_RATE_PITCH_P
-  # define AC_ATC_MULTI_RATE_PITCH_P          0.04f //0.135
+  # define AC_ATC_MULTI_RATE_PITCH_P          0.135f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_I
-  # define AC_ATC_MULTI_RATE_PITCH_I          0.02f //0.072
+  # define AC_ATC_MULTI_RATE_PITCH_I          0.072f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_PITCH_D
-  # define AC_ATC_MULTI_RATE_PITCH_D          0.001f //0.0036
+  # define AC_ATC_MULTI_RATE_PITCH_D          0.0036f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_P
-  # define AC_ATC_MULTI_RATE_ROLL_P           0.04f//0.135
+  # define AC_ATC_MULTI_RATE_ROLL_P           0.135f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_I
-  # define AC_ATC_MULTI_RATE_ROLL_I           0.02f //0.072
+  # define AC_ATC_MULTI_RATE_ROLL_I           0.072f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_ROLL_D
-  # define AC_ATC_MULTI_RATE_ROLL_D           0.001f//0.0036
+  # define AC_ATC_MULTI_RATE_ROLL_D           0.0036f
 #endif
 
 #ifndef AC_ATC_MULTI_RATE_RP_IMAX
- # define AC_ATC_MULTI_RATE_RP_IMAX         0.3f  //0.5
+ # define AC_ATC_MULTI_RATE_RP_IMAX         0.5f
 #endif
 #ifndef AC_ATC_MULTI_RATE_RP_FILT_HZ
  # define AC_ATC_MULTI_RATE_RP_FILT_HZ      20.0f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_P
- # define AC_ATC_MULTI_RATE_YAW_P           0.16f //0.5
+ # define AC_ATC_MULTI_RATE_YAW_P           0.18f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_I
- # define AC_ATC_MULTI_RATE_YAW_I           0.016f //0.25
+ # define AC_ATC_MULTI_RATE_YAW_I           0.018f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_D
- # define AC_ATC_MULTI_RATE_YAW_D           0.0f //0.125
+ # define AC_ATC_MULTI_RATE_YAW_D           0.0f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_IMAX
- # define AC_ATC_MULTI_RATE_YAW_IMAX        0.3f //0.5
+ # define AC_ATC_MULTI_RATE_YAW_IMAX        0.5f
 #endif
 #ifndef AC_ATC_MULTI_RATE_YAW_FILT_HZ
  # define AC_ATC_MULTI_RATE_YAW_FILT_HZ     2.5f
@@ -85,13 +85,45 @@
 #define POSCONTROL_ACC_Z_IMAX                 500     // vertical acceleration controller IMAX gain default
 #define POSCONTROL_ACC_Z_FILT_HZ              20.0f   // vertical acceleration controller input filter default
 #define POSCONTROL_ACC_Z_DT                   0.0025f // vertical acceleration controller dt default
-#define POSCONTROL_POS_XY_P                   0.8f    // horizontal position controller P gain default 1.0
-#define POSCONTROL_VEL_XY_P                   0.4f    // horizontal velocity controller P gain default 2.0
-#define POSCONTROL_VEL_XY_I                   0.2f    // horizontal velocity controller I gain default 1.0
-#define POSCONTROL_VEL_XY_D                   0.1f    // horizontal velocity controller D gain default 0.5
-#define POSCONTROL_VEL_XY_IMAX                50.0f  // horizontal velocity controller IMAX gain default 200
+#define POSCONTROL_POS_XY_P                   1.0f    // horizontal position controller P gain default 1.0
+#define POSCONTROL_VEL_XY_P                   2.0f    // horizontal velocity controller P gain default 2.0
+#define POSCONTROL_VEL_XY_I                   1.0f    // horizontal velocity controller I gain default 1.0
+#define POSCONTROL_VEL_XY_D                   0.5f    // horizontal velocity controller D gain default 0.5
+#define POSCONTROL_VEL_XY_IMAX                200.0f  // horizontal velocity controller IMAX gain default 200
 #define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter default 5.0
 #define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D default 5.0
+
+//UGV attitude control default definition
+#define AR_ATTCONTROL_STEER_ANG_P       2.50f
+#define AR_ATTCONTROL_STEER_RATE_FF     0.20f
+#define AR_ATTCONTROL_STEER_RATE_P      0.20f
+#define AR_ATTCONTROL_STEER_RATE_I      0.20f
+#define AR_ATTCONTROL_STEER_RATE_IMAX   1.00f
+#define AR_ATTCONTROL_STEER_RATE_D      0.00f
+#define AR_ATTCONTROL_STEER_RATE_FILT   10.00f
+#define AR_ATTCONTROL_STEER_RATE_MAX    360.0f
+#define AR_ATTCONTROL_STEER_ACCEL_MAX   180.0f
+#define AR_ATTCONTROL_THR_SPEED_P       0.20f
+#define AR_ATTCONTROL_THR_SPEED_I       0.20f
+#define AR_ATTCONTROL_THR_SPEED_IMAX    1.00f
+#define AR_ATTCONTROL_THR_SPEED_D       0.00f
+#define AR_ATTCONTROL_THR_SPEED_FILT    10.00f
+#define AR_ATTCONTROL_PITCH_THR_P       1.80f
+#define AR_ATTCONTROL_PITCH_THR_I       1.50f
+#define AR_ATTCONTROL_PITCH_THR_D       0.03f
+#define AR_ATTCONTROL_PITCH_THR_IMAX    1.0f
+#define AR_ATTCONTROL_PITCH_THR_FILT    10.0f
+#define AR_ATTCONTROL_DT                0.02f
+#define AR_ATTCONTROL_TIMEOUT_MS        200
+
+// throttle/speed control maximum acceleration/deceleration (in m/s) (_ACCEL_MAX parameter default)
+#define AR_ATTCONTROL_THR_ACCEL_MAX     2.00f
+
+// minimum speed in m/s
+#define AR_ATTCONTROL_STEER_SPEED_MIN   1.0f
+
+// speed (in m/s) at or below which vehicle is considered stopped (_STOP_SPEED parameter default)
+#define AR_ATTCONTROL_STOP_SPEED_DEFAULT    0.1f
 
 // default parameters
 #ifndef ROLL_PITCH_YAW_INPUT_MAX
@@ -175,6 +207,8 @@
 #define MISSION_VEL_MAX 500.0f		//5m/s
 #define MISSION_ACCEL_MAX 100.0f	//1m/ss
 #define ALT_RETURN	1000.0f			//10m
+#define VOLTAGE_GAIN 1.0f
+#define CURRENT_GAIN 1.0f
 
 bool arm_motors(void);
 void disarm_motors(void);
@@ -185,6 +219,7 @@ void set_soft_armed(bool soft_armed);
 bool get_thr_force_decrease(void);
 void set_thr_force_decrease(bool force_decrease);
 void compass_calibrate(void);
+bool get_force_autonav(void);
 
 float ahrs_pitch_rad(void);					//俯仰角弧度值
 float ahrs_roll_rad(void);					//滚转角弧度值
@@ -219,6 +254,7 @@ void ekf_z_reset(void);
 void ekf_xy_reset(void);
 Location get_gnss_origin_pos(void); 		//获取系统启动时的初始gnss坐标
 Location get_gnss_current_pos(void);		//获取系统当前的gnss坐标
+uint8_t get_gnss_reset_notify(void);		//获取航点刷新标志
 float get_ned_pos_x(void);//cm
 float get_ned_pos_y(void);//cm
 float get_ned_pos_z(void);//cm
@@ -241,13 +277,21 @@ uint32_t get_uwb_last_ms(void);
 
 float get_mav_x_target(void);
 float get_mav_y_target(void);
+float get_mav_z_target(void);
 float get_mav_vx_target(void);
 float get_mav_vy_target(void);
+float get_mav_vz_target(void);
+float get_mav_ax_target(void);
+float get_mav_ay_target(void);
+float get_mav_az_target(void);
+float get_mav_yaw_target(void);
+float get_mav_yaw_rate_target(void);
 
 float get_vib_value(void);
 float get_vib_angle_z(void);
 
 bool get_gcs_connected(void);
+bool get_offboard_connected(void);
 bool get_gnss_location_state(void);
 bool has_manual_throttle(void);
 void set_manual_throttle(bool manual_throttle);
@@ -752,6 +796,18 @@ typedef struct{
 		dataflash_type type=FLOAT;
 		float value=ALT_RETURN;
 	}alt_return;
+
+	struct voltage_gain{
+		uint16_t num=43;
+		dataflash_type type=FLOAT;
+		float value=VOLTAGE_GAIN;
+	}voltage_gain;
+
+	struct current_gain{
+		uint16_t num=44;
+		dataflash_type type=FLOAT;
+		float value=CURRENT_GAIN;
+	}current_gain;
 
 	/* *************************************************
 	 * ****************Dev code begin*******************/

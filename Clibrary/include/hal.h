@@ -211,6 +211,7 @@ void ekf_opticalflow_xy(void);
 void ekf_gnss_xy(void);
 void throttle_loop(void);
 void get_tfmini_data(uint8_t buf);
+void get_vl53lxx_data(uint16_t distance_mm);
 void opticalflow_update(void);
 void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t* msg_received, mavlink_status_t* status);
 void distribute_mavlink_data(void);
@@ -360,6 +361,10 @@ void Baro_set_press_offset(float vel); //速度单位:m/s
 
 //光流驱动
 uint8_t get_lc302_data(uint8_t buf);//解析成功返回0,未解析完返回1,解析失败返回2
+
+//激光驱动
+void vl53lxx_init(void);
+void vl53lxx_update(void);
 
 /***fram驱动函数为底层驱动，它的上层函数在Cpplibrary中的flash.h***/
 void FRAM_Init(void);//FRAM 初始化

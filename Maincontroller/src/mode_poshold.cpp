@@ -16,6 +16,7 @@ static bool execute_return=false;
 static bool execute_land=false;
 static bool reach_return_alt=false;
 static float smooth_dt=0.0f;
+static uint8_t notify=0;
 bool mode_poshold_init(void){
 	if(motors->get_armed()){//电机未锁定,禁止切换至该模式
 		Buzzer_set_ring_type(BUZZER_ERROR);
@@ -37,9 +38,7 @@ void mode_poshold(void){
 	float takeoff_climb_rate = 0.0f;
 	float ch7=get_channel_7();
 	update_air_resistance();
-	Servo_Set_Value(2,1500);
-	Servo_Set_Value(3,1500);
-
+	rangefinder_state.enabled=true;
 	// initialize vertical speeds and acceleration
 	pos_control->set_speed_z(-param->pilot_speed_dn.value, param->pilot_speed_up.value);
 	pos_control->set_accel_z(param->pilot_accel_z.value);
@@ -138,19 +137,26 @@ void mode_poshold(void){
 		get_takeoff_climb_rates(target_climb_rate, takeoff_climb_rate);
 
 		// call attitude controller
-		if(ch7>=0.7&&ch7<=1.0){//手动模式(上挡位)
-			get_air_resistance_lean_angles(target_roll, target_pitch, DEFAULT_ANGLE_MAX, 0.5f);
+		if(!get_gps_state()){//定位丢失，强制手动
 			target_yaw=ahrs_yaw_deg();
 			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 			pos_control->set_xy_target(get_pos_x(), get_pos_y());
 			pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
-		}else{//定位模式(下挡位)
-			pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
-			pos_control->calc_desired_velocity(_dt);
-			pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
-			target_yaw=ahrs_yaw_deg();
-			attitude->input_euler_angle_roll_pitch_euler_rate_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw_rate);
+		}else{
+			if(ch7>=0.7&&ch7<=1.0){//手动姿态
+				target_yaw=ahrs_yaw_deg();
+				attitude->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
+				pos_control->set_xy_target(get_pos_x(), get_pos_y());
+				pos_control->reset_predicted_accel(get_vel_x(), get_vel_y());
+			}else{
+				pos_control->set_pilot_desired_acceleration(target_roll, target_pitch, target_yaw, _dt);
+				pos_control->calc_desired_velocity(_dt);
+				pos_control->update_xy_controller(_dt, get_pos_x(), get_pos_y(), get_vel_x(), get_vel_y());
+				target_yaw=ahrs_yaw_deg();
+				attitude->input_euler_angle_roll_pitch_euler_rate_yaw(pos_control->get_roll(), pos_control->get_pitch(), target_yaw_rate);
+			}
 		}
+
 		// call position controller
 		pos_control->set_alt_target_from_climb_rate_ff(target_climb_rate, _dt, false);
 		pos_control->add_takeoff_climb_rate(takeoff_climb_rate, _dt);
@@ -265,6 +271,10 @@ void mode_poshold(void){
 				if(sdlog->gnss_point_num>0){
 					pos_control->set_speed_xy(param->mission_vel_max.value);
 					pos_control->set_accel_xy(param->mission_accel_max.value);
+					if(get_gnss_reset_notify()!=notify){
+						notify=get_gnss_reset_notify();
+						target_point=0;
+					}
 					if(target_point<sdlog->gnss_point_num){
 						if(target_point==0){
 							gnss_target_pos.lat=(int32_t)(sdlog->gnss_point[0].x*1e7);
