@@ -451,7 +451,7 @@ static mavlink_rc_channels_override_t rc_channels;
 static mavlink_attitude_t attitude_mav;
 static mavlink_local_position_ned_cov_t local_position_ned_cov;
 static mavlink_set_position_target_local_ned_t set_position_target_local_ned;
-static Vector3f lidar_offset=Vector3f(0.0f,0.0f, -16.0f);//cm
+static Vector3f lidar_offset=Vector3f(0.0f,0.0f, 0.0f);//cm
 static uint8_t gcs_channel=255;
 static uint16_t gnss_point_statis=0;
 static uint8_t gnss_reset_notify=0;
@@ -1182,31 +1182,33 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 				break;
 			case MAVLINK_MSG_ID_ATTITUDE:   // MAV ID: 30
 				mavlink_msg_attitude_decode(msg_received, &attitude_mav);
-				yaw_map=wrap_PI(-attitude_mav.yaw);  //slam 算法的map坐标系z轴向上，这里统一改为z轴向下, 所以需要加负号
+				yaw_map=wrap_PI(attitude_mav.yaw);  //外部传入的偏航角必须z轴向下的弧度角,即NED或FRD坐标系
 				time_last_attitude=HAL_GetTick();
-				get_mav_yaw=true;
+				if(!USE_MAG){
+					get_mav_yaw=true;
+				}
 				break;
 			case MAVLINK_MSG_ID_LOCAL_POSITION_NED_COV:       // MAV ID: 64
 				mavlink_msg_local_position_ned_cov_decode(msg_received, &local_position_ned_cov);
 				odom_offset=dcm_matrix*lidar_offset;
-				odom_3d.x=local_position_ned_cov.x * 100.0f-odom_offset.x;  //cm
-				odom_3d.y=-local_position_ned_cov.y * 100.0f-odom_offset.y;  //cm ，slam 算法的map坐标系z轴向上，这里统一改为z轴向下，所以y也要变符号；
-				odom_3d.z=local_position_ned_cov.z * 100.0f; //cm, 虽然slam 算法的map坐标系z轴向上，但是EKF做了匹配，需要得到z轴向上的值；
+				odom_3d.x=local_position_ned_cov.x * 100.0f-odom_offset.x;  //cm 外部定位必须是NED或者FRD坐标系,如果是FRD坐标还需要禁用磁罗盘。
+				odom_3d.y=local_position_ned_cov.y * 100.0f-odom_offset.y;  //cm
+				odom_3d.z=-local_position_ned_cov.z * 100.0f; //cm
 				get_odom_xy=true;
 				break;
 			case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:     // MAV ID: 84
 				mavlink_msg_set_position_target_local_ned_decode(msg_received, &set_position_target_local_ned);
-				mav_x_target=set_position_target_local_ned.x * 100.0f;
-				mav_y_target=-set_position_target_local_ned.y * 100.0f;  //slam 算法的map坐标系z轴向上，这里统一改为z轴向下，所以y也要变符号
-				mav_z_target=-set_position_target_local_ned.z * 100.0f;  //slam 算法的map坐标系z轴向上，这里统一改为z轴向下
+				mav_x_target=set_position_target_local_ned.x * 100.0f;//接收的外部目标必须是NED或者FRD坐标系,单位是m,先转为cm
+				mav_y_target=set_position_target_local_ned.y * 100.0f;
+				mav_z_target=set_position_target_local_ned.z * 100.0f;
 				mav_vx_target=set_position_target_local_ned.vx * 100.0f;
-				mav_vy_target=-set_position_target_local_ned.vy * 100.0f;
-				mav_vz_target=-set_position_target_local_ned.vz * 100.0f;
+				mav_vy_target=set_position_target_local_ned.vy * 100.0f;
+				mav_vz_target=set_position_target_local_ned.vz * 100.0f;
 				mav_ax_target=set_position_target_local_ned.afx * 100.0f;
-				mav_ay_target=-set_position_target_local_ned.afy * 100.0f;
-				mav_az_target=-set_position_target_local_ned.afz * 100.0f;
-				mav_yaw_target=-set_position_target_local_ned.yaw*RAD_TO_DEG;
-				mav_yaw_rate_target=-set_position_target_local_ned.yaw_rate*RAD_TO_DEG;
+				mav_ay_target=set_position_target_local_ned.afy * 100.0f;
+				mav_az_target=set_position_target_local_ned.afz * 100.0f;
+				mav_yaw_target=set_position_target_local_ned.yaw*RAD_TO_DEG;
+				mav_yaw_rate_target=set_position_target_local_ned.yaw_rate*RAD_TO_DEG;
 				break;
 			default:
 				break;
@@ -2063,6 +2065,8 @@ bool gyro_calibrate(void){
 	return gyro_cal_succeed;
 }
 
+static Vector3f mag_correct_silent, mag_correct_delta;
+static uint16_t clear_mag_correct_delta=0;
 void update_mag_data(void){
 #if USE_MAG
 	mag.x = qmc5883_data.magf.x;
@@ -2086,8 +2090,28 @@ void update_mag_data(void){
 		_mag_filter.set_cutoff_frequency(100, mag_filt_hz);
 		initial_mag=true;
 	}else{
-		mag_filt = _mag_filter.apply(mag_correct);
 		mag_corrected=true;
+		if(robot_state==STATE_STOP||robot_state==STATE_NONE){
+			mag_correct_silent=mag_correct;
+			clear_mag_correct_delta=0;
+			mag_correct_delta.zero();
+			mag_filt = _mag_filter.apply(mag_correct);
+		}else if(robot_state==STATE_TAKEOFF||robot_state==STATE_LANDED){//起飞时禁用磁罗盘
+			mag_corrected=false;
+			clear_mag_correct_delta=200;
+			mag_correct_delta.zero();
+		}else if(robot_state==STATE_FLYING){
+			if(clear_mag_correct_delta>0){
+				mag_corrected=false;
+				if(clear_mag_correct_delta==1){
+					mag_correct_delta=mag_correct-mag_correct_silent;
+				}
+				clear_mag_correct_delta--;
+			}else{
+				mag_correct-=mag_correct_delta;
+				mag_filt = _mag_filter.apply(mag_correct);
+			}
+		}
 	}
 #endif
 }
@@ -2360,11 +2384,23 @@ void ekf_gnss_xy(void){
 }
 
 float get_pos_x(void){//cm
+#if USE_GPS
 	return ekf_gnss->pos_x;
+#elif USE_ODOMETRY
+	return ekf_odometry->pos_x;
+#elif USE_FLOW
+	return ekf_opticalflow->pos_x;
+#endif
 }
 
 float get_pos_y(void){//cm
+#if USE_GPS
 	return ekf_gnss->pos_y;
+#elif USE_ODOMETRY
+	return ekf_odometry->pos_y;
+#elif USE_FLOW
+	return ekf_opticalflow->pos_y;
+#endif
 }
 
 float get_pos_z(void){//cm
@@ -2372,11 +2408,23 @@ float get_pos_z(void){//cm
 }
 
 float get_vel_x(void){//cm/s
+#if USE_GPS
 	return ekf_gnss->vel_x;
+#elif USE_ODOMETRY
+	return ekf_odometry->vel_x;
+#elif USE_FLOW
+	return ekf_opticalflow->vel_x;
+#endif
 }
 
 float get_vel_y(void){//cm/s
+#if USE_GPS
 	return ekf_gnss->vel_y;
+#elif USE_ODOMETRY
+	return ekf_odometry->vel_y;
+#elif USE_FLOW
+	return ekf_opticalflow->vel_y;
+#endif
 }
 
 float get_vel_z(void){//cm/s

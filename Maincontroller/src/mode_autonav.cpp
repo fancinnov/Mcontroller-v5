@@ -55,7 +55,7 @@ void mode_autonav(void){
 	float target_climb_rate = get_pilot_desired_climb_rate(get_channel_throttle());
 	target_climb_rate = constrain_float(target_climb_rate, -param->pilot_speed_dn.value, param->pilot_speed_up.value);
 
-	if(get_force_autonav()){//强制飞控进入自主模式
+	if(get_force_autonav()&&!rc_channels_healthy()){//强制飞控进入自主模式
 		ch7=-1.0f;
 	}
 
