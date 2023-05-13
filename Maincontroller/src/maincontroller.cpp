@@ -609,7 +609,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 						send_mavlink_commond_ack(chan, MAV_CMD_PREFLIGHT_CALIBRATION, MAV_CMD_ACK_OK);
 						break;
 					case MAV_CMD_DO_SET_PARAMETER:
-						if(is_equal(cmd.param1,0.5f)){//reset PID parameters in flash
+						switch(uint16_t(cmd.param1)){
+						case 0://reset PID parameters in flash
 
 							/* *************************************************
 							 * ****************Dev code begin*******************/
@@ -743,7 +744,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							attitude->set_lean_angle_max(param->angle_max.value);
 							pos_control->set_lean_angle_max_d(param->angle_max.value);
 							send_mavlink_param_list(chan);
-						}else if(is_equal(cmd.param1,1.0f)){//ANGLE_ROLL_P
+							break;
+						case 1://ANGLE_ROLL_P
 							attitude->get_angle_roll_p().kP(cmd.param2);
 							param->angle_roll_p.value=cmd.param2;
 							dataflash->set_param_float(param->angle_roll_p.num, param->angle_roll_p.value);
@@ -752,7 +754,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->angle_roll_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,2.0f)){//ANGLE_PITCH_P
+							break;
+						case 2://ANGLE_PITCH_P
 							attitude->get_angle_pitch_p().kP(cmd.param2);
 							param->angle_pitch_p.value=cmd.param2;
 							dataflash->set_param_float(param->angle_pitch_p.num, param->angle_pitch_p.value);
@@ -761,7 +764,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->angle_pitch_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,3.0f)){//ANGLE_YAW_P
+							break;
+						case 3://ANGLE_YAW_P
 							attitude->get_angle_yaw_p().kP(cmd.param2);
 							param->angle_yaw_p.value=cmd.param2;
 							dataflash->set_param_float(param->angle_yaw_p.num, param->angle_yaw_p.value);
@@ -770,7 +774,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->angle_yaw_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,4.0f)){//RATE_ROLL_PID
+							break;
+						case 4://RATE_ROLL_PID
 							attitude->get_rate_roll_pid().kP(cmd.param2);
 							attitude->get_rate_roll_pid().kI(cmd.param3);
 							attitude->get_rate_roll_pid().kD(cmd.param4);
@@ -792,7 +797,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param6=param->rate_roll_pid.value_filt_hz;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,5.0f)){//RATE_PITCH_PID
+							break;
+						case 5://RATE_PITCH_PID
 							attitude->get_rate_pitch_pid().kP(cmd.param2);
 							attitude->get_rate_pitch_pid().kI(cmd.param3);
 							attitude->get_rate_pitch_pid().kD(cmd.param4);
@@ -814,7 +820,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param6=param->rate_pitch_pid.value_filt_hz;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,6.0f)){//RATE_YAW_PID
+							break;
+						case 6://RATE_YAW_PID
 							attitude->get_rate_yaw_pid().kP(cmd.param2);
 							attitude->get_rate_yaw_pid().kI(cmd.param3);
 							attitude->get_rate_yaw_pid().kD(cmd.param4);
@@ -836,7 +843,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param6=param->rate_yaw_pid.value_filt_hz;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,7.0f)){//POS_Z_P
+							break;
+						case 7://POS_Z_P
 							pos_control->get_pos_z_p().kP(cmd.param2);
 							param->pos_z_p.value=cmd.param2;
 							dataflash->set_param_float(param->pos_z_p.num, param->pos_z_p.value);
@@ -845,7 +853,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pos_z_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,8.0f)){//VEL_Z_P
+							break;
+						case 8://VEL_Z_P
 							pos_control->get_vel_z_p().kP(cmd.param2);
 							param->vel_z_p.value=cmd.param2;
 							dataflash->set_param_float(param->vel_z_p.num, param->vel_z_p.value);
@@ -854,7 +863,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->vel_z_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,9.0f)){//ACCEL_Z_P
+							break;
+						case 9://ACCEL_Z_PID
 							pos_control->get_accel_z_pid().kP(cmd.param2);
 							pos_control->get_accel_z_pid().kI(cmd.param3);
 							pos_control->get_accel_z_pid().kD(cmd.param4);
@@ -876,7 +886,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param6=param->accel_z_pid.value_filt_hz;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,10.0f)){//POS_XY_P
+							break;
+						case 10://POS_XY_P
 							pos_control->get_pos_xy_p().kP(cmd.param2);
 							param->pos_xy_p.value=cmd.param2;
 							dataflash->set_param_float(param->pos_xy_p.num, param->pos_xy_p.value);
@@ -885,7 +896,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pos_xy_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,11.0f)){//VEL_XY_PID
+							break;
+						case 11://VEL_XY_PID
 							pos_control->get_vel_xy_pid().kP(Vector2f(cmd.param2,cmd.param2));
 							pos_control->get_vel_xy_pid().kI(Vector2f(cmd.param3,cmd.param3));
 							pos_control->get_vel_xy_pid().kD(Vector2f(cmd.param4,cmd.param4));
@@ -910,7 +922,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param7=param->vel_xy_pid.value_filt_d_hz;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,12.0f)){
+							break;
+						case 12:
 							param->acro_y_expo.value=cmd.param2;
 							dataflash->set_param_float(param->acro_y_expo.num, param->acro_y_expo.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -918,7 +931,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->acro_y_expo.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,13.0f)){
+							break;
+						case 13:
 							param->acro_yaw_p.value=cmd.param2;
 							dataflash->set_param_float(param->acro_yaw_p.num, param->acro_yaw_p.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -926,7 +940,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->acro_yaw_p.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,14.0f)){
+							break;
+						case 14:
 							param->throttle_midzone.value=cmd.param2;
 							dataflash->set_param_float(param->throttle_midzone.num, param->throttle_midzone.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -934,7 +949,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->throttle_midzone.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,15.0f)){
+							break;
+						case 15:
 							param->pilot_speed_dn.value=cmd.param2;
 							dataflash->set_param_float(param->pilot_speed_dn.num, param->pilot_speed_dn.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -942,7 +958,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pilot_speed_dn.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,16.0f)){
+							break;
+						case 16:
 							param->pilot_speed_up.value=cmd.param2;
 							dataflash->set_param_float(param->pilot_speed_up.num, param->pilot_speed_up.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -950,7 +967,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pilot_speed_up.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,17.0f)){
+							break;
+						case 17:
 							param->rangefinder_gain.value=cmd.param2;
 							dataflash->set_param_float(param->rangefinder_gain.num, param->rangefinder_gain.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -958,7 +976,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->rangefinder_gain.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,18.0f)){
+							break;
+						case 18:
 							param->angle_max.value=cmd.param2;
 							attitude->set_lean_angle_max(param->angle_max.value);
 							pos_control->set_lean_angle_max_d(param->angle_max.value);
@@ -968,7 +987,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->angle_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,19.0f)){
+							break;
+						case 19:
 							param->pilot_accel_z.value=cmd.param2;
 							dataflash->set_param_float(param->pilot_accel_z.num, param->pilot_accel_z.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -976,7 +996,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pilot_accel_z.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,20.0f)){
+							break;
+						case 20:
 							param->pilot_takeoff_alt.value=cmd.param2;
 							dataflash->set_param_float(param->pilot_takeoff_alt.num, param->pilot_takeoff_alt.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -984,7 +1005,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->pilot_takeoff_alt.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,21.0f)){
+							break;
+						case 21:
 							param->spool_up_time.value=cmd.param2;
 							dataflash->set_param_float(param->spool_up_time.num, param->spool_up_time.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -992,7 +1014,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->spool_up_time.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,22.0f)){
+							break;
+						case 22:
 							param->throttle_filt.value=cmd.param2;
 							dataflash->set_param_float(param->throttle_filt.num, param->throttle_filt.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1000,7 +1023,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->throttle_filt.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,23.0f)){
+							break;
+						case 23:
 							param->t_hover_update_min.value=cmd.param2;
 							dataflash->set_param_float(param->t_hover_update_min.num, param->t_hover_update_min.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1008,7 +1032,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->t_hover_update_min.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,24.0f)){
+							break;
+						case 24:
 							param->t_hover_update_max.value=cmd.param2;
 							dataflash->set_param_float(param->t_hover_update_max.num, param->t_hover_update_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1016,7 +1041,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->t_hover_update_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,25.0f)){
+							break;
+						case 25:
 							param->vib_land.value=cmd.param2;
 							dataflash->set_param_float(param->vib_land.num, param->vib_land.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1024,7 +1050,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->vib_land.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,26.0f)){
+							break;
+						case 26:
 							param->auto_land_speed.value=cmd.param2;
 							dataflash->set_param_float(param->auto_land_speed.num, param->auto_land_speed.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1032,7 +1059,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->auto_land_speed.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,27.0f)){
+							break;
+						case 27:
 							param->lowbatt_return_volt.value=cmd.param2;
 							dataflash->set_param_float(param->lowbatt_return_volt.num, param->lowbatt_return_volt.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1040,7 +1068,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->lowbatt_return_volt.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,28.0f)){
+							break;
+						case 28:
 							param->lowbatt_land_volt.value=cmd.param2;
 							dataflash->set_param_float(param->lowbatt_land_volt.num, param->lowbatt_land_volt.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1048,7 +1077,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->lowbatt_land_volt.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,29.0f)){
+							break;
+						case 29:
 							param->poshold_vel_max.value=cmd.param2;
 							dataflash->set_param_float(param->poshold_vel_max.num, param->poshold_vel_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1056,7 +1086,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->poshold_vel_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,30.0f)){
+							break;
+						case 30:
 							param->poshold_accel_max.value=cmd.param2;
 							dataflash->set_param_float(param->poshold_accel_max.num, param->poshold_accel_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1064,7 +1095,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->poshold_accel_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,31.0f)){
+							break;
+						case 31:
 							param->mission_vel_max.value=cmd.param2;
 							dataflash->set_param_float(param->mission_vel_max.num, param->mission_vel_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1072,7 +1104,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->mission_vel_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,32.0f)){
+							break;
+						case 32:
 							param->mission_accel_max.value=cmd.param2;
 							dataflash->set_param_float(param->mission_accel_max.num, param->mission_accel_max.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1080,7 +1113,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->mission_accel_max.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,33.0f)){
+							break;
+						case 33:
 							param->alt_return.value=cmd.param2;
 							dataflash->set_param_float(param->alt_return.num, param->alt_return.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1088,7 +1122,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->alt_return.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,34.0f)){
+							break;
+						case 34:
 							param->voltage_gain.value=cmd.param2;
 							dataflash->set_param_float(param->voltage_gain.num, param->voltage_gain.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1096,7 +1131,8 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->voltage_gain.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}else if(is_equal(cmd.param1,35.0f)){
+							break;
+						case 35:
 							param->current_gain.value=cmd.param2;
 							dataflash->set_param_float(param->current_gain.num, param->current_gain.value);
 							command_long.command=MAV_CMD_DO_SET_PARAMETER;
@@ -1104,13 +1140,13 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param2=param->current_gain.value;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						}
+							break;
 						/* *************************************************
 						 * ****************Dev code begin*******************/
 						// Warning! Developer can add your new code here!
 						/* Demo
 						 * 接收app设置的参数值
-						 else if(is_equal(cmd.param1,1001.0f)){ 		//cmd.param1为自定义参数的mavlink id, 从1001开始
+						 case 1001: 		//cmd.param1为自定义参数的mavlink id, 从1001开始
 							param->demo_param_1.value.x=cmd.param2;		//cmd.param2~cmd.param7为参数实际内容。
 							param->demo_param_1.value.y=cmd.param3;
 							param->demo_param_1.value.z=cmd.param4;
@@ -1123,11 +1159,14 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 							command_long.param4=param->demo_param_1.value.z;
 							mavlink_msg_command_long_encode(mavlink_system.sysid, mavlink_system.compid, &msg_command_long, &command_long);
 							mavlink_send_buffer(chan, &msg_command_long);
-						 }
+						 	break;
 						 * */
 
 						/* ****************Dev code end*********************
 						 * *************************************************/
+						default:
+							break;
+						}
 						break;
 					default:
 						break;
@@ -1232,6 +1271,13 @@ void send_mavlink_heartbeat_data(void){
 	}
 	if(get_soft_armed()){
 		heartbeat_send.base_mode|=MAV_MODE_FLAG_SAFETY_ARMED;
+		if(sdlog->m_Logger_Status==SDLog::Logger_Idle){
+			sdlog->Logger_Enable();
+		}
+	}else{
+		if(sdlog->m_Logger_Status==SDLog::Logger_Record){
+			sdlog->Logger_Disable();
+		}
 	}
 	if(sdlog->m_Logger_Status==SDLog::Logger_Record){
 		heartbeat_send.base_mode|=MAV_MODE_FLAG_HIL_ENABLED;
@@ -2194,11 +2240,8 @@ void ahrs_update(void){
 #endif
 }
 
-static float baro_alt_filt=0,baro_alt_init=0,baro_alt_last=0,baro_alt_correct=0,gnss_alt_last=0;
-static float rf_alt_delta=0, rf_alt_last=0, gnss_alt_delta=0,baro_alt_delta=0,vel_2d=0,accel_2d=0;
+static float baro_alt_filt=0,baro_alt_init=0,baro_alt_correct=0;
 static uint16_t init_baro=0;
-static float K_gain=0.0f;
-static bool rf_correct=false;
 void update_baro_alt(void){
 	if(init_baro<20){//前20点不要
 		init_baro++;
@@ -2221,51 +2264,7 @@ void update_baro_alt(void){
 		initial_baro=true;
 	}else{
 		baro_alt-=baro_alt_init;
-		if(get_gps_state()){
-			if(is_equal(K_gain, 0.0f)){
-				K_gain=constrain_float((float)gps_position->satellites_used/30, 0.0f, 1.0f);
-				gnss_alt_last=ned_current_pos.z;
-				gnss_alt_delta=0;
-			}else{
-				K_gain=constrain_float((float)gps_position->satellites_used/30, 0.0f, 1.0f);
-				gnss_alt_delta=ned_current_pos.z-gnss_alt_last;
-				gnss_alt_last=ned_current_pos.z;
-				if(is_equal(gnss_alt_delta, 0.0f)){
-					K_gain=0.0f;
-				}
-			}
-			vel_2d=sqrtf(sq(get_vel_x(),get_vel_y()));
-		}else{
-			K_gain=0.0f;
-			vel_2d=0.0f;
-		}
-		if(rangefinder_state.alt_healthy){
-			rf_alt_delta=rangefinder_state.alt_cm-rf_alt_last;
-			rf_alt_last=rangefinder_state.alt_cm;
-			if(abs(rf_alt_delta)<100.0f&&!is_equal(rf_alt_delta,0.0f)){
-				rf_correct=true;
-			}else{
-				rf_correct=false;
-			}
-		}else{
-			rf_correct=false;
-		}
-		baro_alt_delta=baro_alt-baro_alt_last;
-		baro_alt_last=baro_alt;
-		accel_2d=sqrtf(sq(get_accel_ef().x,get_accel_ef().y));
-		if(rf_correct&&(baro_alt_delta*rf_alt_delta<0||abs(baro_alt_delta)>15.0f||accel_2d>1.0f)){//防止水平飞行掉高和大风扰动
-			baro_alt_delta=rf_alt_delta;
-		}else if(K_gain>0.2f&&(abs(baro_alt_delta)>15.0f||accel_2d>1.0f)&&abs(gnss_alt_delta)<100.0f){//防止水平飞行掉高和大风扰动
-			baro_alt_delta=gnss_alt_delta;
-		}else{
-			if(vel_2d<100&&accel_2d<1.0f){
-				baro_alt_delta=baro_alt-baro_alt_correct;
-			}
-			if(abs(get_vel_z())<100.0f){
-				baro_alt_delta=constrain_float(baro_alt_delta, -15.0f, 15.0f);
-			}
-		}
-		baro_alt_correct+=baro_alt_delta;
+		ekf_baro->fusion(baro_alt, baro_alt_correct);
 		baro_alt_filt = _baro_alt_filter.apply(baro_alt_correct);
 		get_baro_alt_filt=true;
 	}
@@ -2630,7 +2629,7 @@ float get_surface_tracking_climb_rate(float target_rate, float current_alt_targe
     uint32_t now = HAL_GetTick();
 
     // reset target altitude if this controller has just been engaged
-    if (now - last_call_ms > RANGEFINDER_TIMEOUT_MS) {
+    if (now - last_call_ms > RANGEFINDER_TIMEOUT_MS && robot_sub_mode!=MODE_AUTONAV) {
     	target_rangefinder_alt = rangefinder_state.alt_cm + current_alt_target - current_alt;
     }
     last_call_ms = now;

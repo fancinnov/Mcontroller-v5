@@ -39,17 +39,18 @@ void mode_stabilize(void){
 		motors_test_update();
 		/*
 		 * 以下为电调校准模式说明:
-		 * (1) 在channel8电机硬件锁定状态下, 将油门推到最高, 偏航推到最左, 持续5s进入电调校准模式;
-		 * (2) 进入电调校准模式后提示音“嘟嘟嘟...”响起。此时将偏航回中, channel8解锁电机硬件, Mcontroller M1~M8插口会产生PWM输出;
-		 * (3) 在电调校准模式中, Mcontroller M1~M8口输出的PWM波脉宽直接由油门推杆控制, 即最大油门对应最大脉宽, 最小油门对应最小脉宽。
-		 * (4) 电调校准模式默认持续时间为20s, 即进入电调校准模式20s后自动退出电调校准模式;
-		 * (5) 在电调校准模式中, 将偏航推到最右可以立即退出电调校准模式;
+		 * (1) 在电机锁定状态下,首先进行硬件解锁(注意不要进行手势解锁), 硬件解锁后Mcontroller右侧绿色指示灯长亮;
+		 * (2) 将油门推到最高, 偏航推到最左, 持续5s进入电调校准模式;
+		 * (3) 进入电调校准模式后提示音“嘟嘟嘟...”响起。此时将偏航回中, Mcontroller M1~M8插口会产生PWM输出;
+		 * (4) 在电调校准模式中, Mcontroller M1~M8口输出的PWM波脉宽直接由油门推杆控制, 即最大油门对应最大脉宽, 最小油门对应最小脉宽。
+		 * (5) 电调校准模式默认持续时间为20s, 即进入电调校准模式20s后自动退出电调校准模式;
+		 * (6) 在电调校准模式中, 将偏航推到最右可以立即退出电调校准模式;
 		 * */
 		float throttle=get_channel_throttle();
 		float tmp = get_channel_yaw();
 		if (tmp < -0.9) { //full left
 			// wait for 5s to enter esc correct mode
-			if( throttle > 0.9 && esc_counter < 2000 && !motors->get_interlock()) {
+			if( throttle > 0.9 && esc_counter < 2000) {
 				esc_counter++;
 			}
 			if (esc_counter == 2000) {

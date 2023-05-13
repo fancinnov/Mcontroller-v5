@@ -107,6 +107,7 @@ void mode_autonav(void){
 		// set motors to full range
 		motors->set_desired_spool_state(Motors::DESIRED_THROTTLE_UNLIMITED);
 		motors->set_throttle_hover(0.35);//设置悬停油门, 需要根据不同的机型自行调整
+		set_target_rangefinder_alt(param->pilot_takeoff_alt.value);
 		// initiate take-off
 		if (!takeoff_running()) {
 			if(get_batt_volt()<param->lowbatt_land_volt.value){

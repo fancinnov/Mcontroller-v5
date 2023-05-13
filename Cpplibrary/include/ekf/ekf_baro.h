@@ -16,7 +16,8 @@ class EKF_Baro{
 public:
 	EKF_Baro(float dt, float Q1, float Q2, float R1, float R2);
 	void update(bool &get_baro_alt_filt, float baro_alt);
-	float pos_z=0, vel_z=0;
+	void fusion(float baro_alt, float &baro_alt_correct);
+	float pos_z=0, vel_z=0, vel_2d=0, accel_2d=0;
 	float get_vt(void){return vt_last;}
 	bool is_initialed(void){return initialed;}
 	void reset(void){
@@ -56,5 +57,9 @@ private:
 	float accelz_filt=0;
 	DerivativeFilterFloat_Size7 _climb_rate_filter;
 	float alt_last=0;
+	float baro_alt_last=0,gnss_alt_last=0;
+	float rf_alt_delta=0, rf_alt_last=0, gnss_alt_delta=0,baro_alt_delta=0;
+	float K_gain=0.0f;
+	bool rf_correct=false;
 };
 #endif /* INCLUDE_EKF_EKF_BARO_H_ */

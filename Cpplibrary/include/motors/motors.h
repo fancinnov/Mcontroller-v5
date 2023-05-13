@@ -64,6 +64,7 @@ public:
         MOTOR_FRAME_TYPE_H = 2,
 		MOTOR_FRAME_TYPE_X8 = 3,
 		MOTOR_FRAME_TYPE_M8 = 4,
+		MOTOR_FRAME_TYPE_PLUS = 5
     };
 
     enum motor_pwm_type {
