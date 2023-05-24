@@ -118,7 +118,7 @@
 								<outputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.output.elf.1267514021" outputPrefix="" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.output.elf"/>
 							</tool>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.1783720214" name="MCU GCC Archiver" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver">
-								<outputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.output.1479037504" outputPrefix="" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.output"/>
+								<outputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.output.1479037504" outputPrefix="lib" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.output"/>
 							</tool>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.size.637155617" name="MCU Size" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.size"/>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objdump.listfile.22232027" name="MCU Output Converter list file" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objdump.listfile"/>

@@ -467,6 +467,8 @@ bool get_force_autonav(void){
 }
 
 //发送
+static mavlink_message_t msg_heartbeat;
+static mavlink_heartbeat_t heartbeat_send;
 static mavlink_system_t mavlink_system;
 static mavlink_message_t msg_global_attitude_position, msg_global_position_int, msg_command_long, msg_battery_status, msg_rc_channels, msg_mission_count, msg_mission_item, msg_system_version;
 static mavlink_global_vision_position_estimate_t global_attitude_position;
@@ -1257,8 +1259,6 @@ void parse_mavlink_data(mavlink_channel_t chan, uint8_t data, mavlink_message_t*
 
 //系统启动后必须确保心跳函数1s运行一次
 void send_mavlink_heartbeat_data(void){
-	mavlink_message_t msg_heartbeat;
-	mavlink_heartbeat_t heartbeat_send;
 	mavlink_system.sysid=1;
 	mavlink_system.compid=MAV_COMP_ID_AUTOPILOT1;
 	heartbeat_send.type=param->robot_type.value;//机器人类型
