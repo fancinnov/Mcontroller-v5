@@ -43,7 +43,7 @@ void mode_stabilize(void){
 		 * (2) 将油门推到最高, 偏航推到最左, 持续5s进入电调校准模式;
 		 * (3) 进入电调校准模式后提示音“嘟嘟嘟...”响起。此时将偏航回中, Mcontroller M1~M8插口会产生PWM输出;
 		 * (4) 在电调校准模式中, Mcontroller M1~M8口输出的PWM波脉宽直接由油门推杆控制, 即最大油门对应最大脉宽, 最小油门对应最小脉宽。
-		 * (5) 电调校准模式默认持续时间为20s, 即进入电调校准模式20s后自动退出电调校准模式;
+		 * (5) 电调校准模式默认持续时间为50s, 即进入电调校准模式50s后自动退出电调校准模式;
 		 * (6) 在电调校准模式中, 将偏航推到最右可以立即退出电调校准模式;
 		 * */
 		float throttle=get_channel_throttle();
@@ -54,7 +54,7 @@ void mode_stabilize(void){
 				esc_counter++;
 			}
 			if (esc_counter == 2000) {
-				esc_delay=8000; //设置电调校准持续时间为20s, 20s后自动退出电调校准模式
+				esc_delay=20000; //设置电调校准持续时间为50s, 50s后自动退出电调校准模式
 				Buzzer_set_ring_type(BUZZER_ESC);
 			}
 		}else if(tmp>0.5){	// Yaw is right to reset esc counter

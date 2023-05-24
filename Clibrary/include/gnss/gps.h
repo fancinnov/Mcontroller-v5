@@ -74,6 +74,9 @@ extern "C" {
 		float vel_n_m_s;
 		float vel_e_m_s;
 		float vel_d_m_s;
+		float vel_n_std;
+		float vel_e_std;
+		float vel_d_std;
 		float cog_rad;
 		int32_t timestamp_time_relative;
 		uint8_t fix_type;

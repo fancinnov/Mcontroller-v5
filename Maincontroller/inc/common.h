@@ -317,6 +317,7 @@ bool mode_perch_init(void);
 void mode_perch(void);
 void mode_ugv_a(void);
 void mode_ugv_v(void);
+void mode_usv_a(void);
 
 // Documentation of GLobals:
 typedef union {
