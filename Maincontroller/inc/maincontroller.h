@@ -58,6 +58,7 @@ bool get_return(void);
 void set_takeoff(void);
 bool get_takeoff(void);
 bool takeoff_running(void);
+void takeoff_stop(void);
 bool takeoff_triggered( float target_climb_rate);
 void takeoff_start(float alt_cm);
 void set_throttle_takeoff(void);

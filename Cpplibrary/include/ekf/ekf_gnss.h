@@ -50,7 +50,6 @@ private:
 	float* error2_odomx;
 	float* Kal_odomx;
 	float inverse_x[4]={};
-	float accelx_filt=0;
 	/*****************y-axis******************/
 	float delta_x_odomy=0, delta_v_vely=0;
 	float G_odomy[2*2]={ 1, T_odom,
@@ -74,8 +73,9 @@ private:
 	float* error2_odomy;
 	float* Kal_odomy;
 	float inverse_y[4]={};
+	float accel_filt_hz=10;//Hz 震动对于速度预测影响非常大 所以要把截止频率设低一些
+	float accelx_filt=0;
 	float accely_filt=0;
-	float accelxy_filt_hz=10;
 };
 
 #endif /* INCLUDE_EKF_EKF_GNSS_H_ */

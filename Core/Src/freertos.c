@@ -416,7 +416,6 @@ void Loop400hzTask(void *argument)
 	  /***Do not change code above and change or add new code below***/
 	  ekf_odom_xy();
 	  ekf_gnss_xy();
-	  ekf_opticalflow_xy();
 	  mode_update();
   }
   /* USER CODE END Loop400hzTask */

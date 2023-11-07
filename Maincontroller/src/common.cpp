@@ -96,7 +96,7 @@ void mode_update(void){
 		}else{
 			//无人车定点模式
 			if(robot_sub_mode!=MODE_UGV_P){
-				//init()
+				mode_ugv_p_init();
 				robot_sub_mode=MODE_UGV_P;
 			}
 		}
@@ -133,6 +133,7 @@ void mode_update(void){
 		break;
 	case MODE_UGV_P:
 		//无人车定点模式update()
+		mode_ugv_p();
 		break;
 	default:
 		break;

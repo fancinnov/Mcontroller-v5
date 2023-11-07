@@ -234,6 +234,7 @@ float ahrs_sin_pitch(void);					//俯仰角正弦值
 float ahrs_cos_yaw(void);					//偏航角余弦值
 float ahrs_sin_yaw(void);					//偏航角正弦值
 const Vector3f& get_accel_ef(void);			//地球坐标系下的三轴加速度
+const Vector3f& get_accel_ef_filt(void);	//滤波后地球坐标系下的三轴加速度
 const Vector3f& get_gyro_ef(void);			//地球坐标系下的三轴角速度
 const Vector3f& get_accel_correct(void);	//修正后的三轴机体加速度
 const Vector3f& get_gyro_correct(void);		//修正后的三轴机体角速度
@@ -273,7 +274,6 @@ float get_vel_z(void);//cm/s
 float get_uwb_x(void);
 float get_uwb_y(void);
 float get_uwb_z(void);
-uint32_t get_uwb_last_ms(void);
 
 float get_mav_x_target(void);
 float get_mav_y_target(void);
@@ -286,6 +286,14 @@ float get_mav_ay_target(void);
 float get_mav_az_target(void);
 float get_mav_yaw_target(void);
 float get_mav_yaw_rate_target(void);
+float get_actuator_control_1(void);
+float get_actuator_control_2(void);
+float get_actuator_control_3(void);
+float get_actuator_control_4(void);
+float get_actuator_control_5(void);
+float get_actuator_control_6(void);
+float get_actuator_control_7(void);
+float get_actuator_control_8(void);
 
 float get_vib_value(void);
 float get_vib_angle_z(void);
@@ -318,6 +326,8 @@ void mode_perch(void);
 void mode_ugv_a(void);
 void mode_ugv_v(void);
 void mode_usv_a(void);
+bool mode_ugv_p_init(void);
+void mode_ugv_p(void);
 
 // Documentation of GLobals:
 typedef union {

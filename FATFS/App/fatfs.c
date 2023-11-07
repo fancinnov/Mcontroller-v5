@@ -24,7 +24,7 @@ FATFS SDFatFS;    /* File system object for SD logical drive */
 FIL SDFile;       /* File object for SD */
 
 /* USER CODE BEGIN Variables */
-
+FIL SDMission;
 /* USER CODE END Variables */
 
 void MX_FATFS_Init(void)

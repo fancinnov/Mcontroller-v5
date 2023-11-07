@@ -21,11 +21,10 @@ private:
 	}Log_Type;
 	DIR SD_Dir_Mlog,SD_Dir_Mission;
 	UINT log_num;
-	FIL gnss_file;
 	char buff_read[16];	/* Pointer to data buffer */
 	UINT btr=16;         /* Number of bytes to read */
 	UINT br;	        /* number of bytes read */
-	uint16_t index_log;
+	uint16_t index_log=1;
 	FRESULT res;
 	UINT len_filename;
 	char file_name[10];

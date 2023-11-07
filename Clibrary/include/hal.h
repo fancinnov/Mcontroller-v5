@@ -207,7 +207,6 @@ void uwb_position_update(void);
 void ekf_baro_alt(void);
 void ekf_rf_alt(void);
 void ekf_odom_xy(void);
-void ekf_opticalflow_xy(void);
 void ekf_gnss_xy(void);
 void throttle_loop(void);
 void get_tfmini_data(uint8_t buf);
@@ -650,6 +649,7 @@ HAL_StatusTypeDef sbus_output_buf_delayms(uint8_t* buf, uint16_t size, uint32_t 
 void RC_Input_Init(uint8_t mode);//初始化遥控接收机（PPM/SBUS）
 void RC_Input_Loop(void);//接收遥控器数据
 void rc_range_cal(void);
+void reset_rc_channels(void);
 void set_rc_channels_override(bool set);//设置Mavlink覆盖遥控器信号
 bool get_rc_channels_override(void);//获取Mavlink覆盖遥控器信号
 void override_rc_channels(uint16_t *pwm_in);
