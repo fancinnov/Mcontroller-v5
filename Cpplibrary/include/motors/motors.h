@@ -140,6 +140,7 @@ public:
 	void                update_throttle_hover(float dt);
     // run spool logic
     void                output_logic();
+    spool_up_down_mode  get_spool_mode() const {return _spool_mode;}
 
     // accessors for roll, pitch, yaw and throttle inputs to motors
     float               get_roll() const { return _roll_in; }
@@ -150,6 +151,7 @@ public:
     // returns maximum thrust in the range 0 to 1
     float               get_throttle_max() const { return _throttle_max; }
     float               get_throttle_min() const { return _throttle_min; }
+    float				get_throttle_thrust_max() const { return _throttle_thrust_max; }
     float               get_filt_alpha() const;
     motor_frame_class   get_frame_class() const { return _frame_class;}
     motor_frame_type    get_frame_type() const { return _frame_type;}
