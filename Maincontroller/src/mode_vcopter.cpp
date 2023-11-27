@@ -22,25 +22,27 @@ bool mode_vcopter_init(void){
 	return true;
 }
 
-#define SERVO_MID 1500	//旋翼舵机中位对应的脉宽值,单位：us,需要自己调整
+#define SERVO_MID 1500	//旋翼舵机中位对应的脉宽值,单位：us,需要自己调整,一般中位是1500us
 #define SERVO_PI_4  500 //旋翼倾转45度对应的脉宽变化,单位：us,需要自己调整
-static float _thrust_left=0.0f,_thrust_right=0.0f,_tilt_left=0.0f,_tilt_right=0.0f;
-static float roll_thrust;                // roll thrust input value, +/- 1.0
-static float pitch_thrust;               // pitch thrust input value, +/- 1.0
-static float yaw_thrust;                 // yaw thrust input value, +/- 1.0
-static float throttle_thrust;            // throttle thrust input value, 0.0 - 1.0
-static float thrust_max;                 // highest motor value
-static float thr_adj = 0.0f;             // the difference between the pilot's desired throttle and throttle_thrust_best_rpy
+static float _thrust_left=0.0f,_thrust_right=0.0f,_tilt_left=0.0f,_tilt_right=0.0f;//最终给到电机和舵机的输出
+static float roll_thrust;                // 滚转输出, +/- 1.0
+static float pitch_thrust;               // 俯仰输出, +/- 1.0
+static float yaw_thrust;                 // 偏航输出, +/- 1.0
+static float throttle_thrust;            // 油门输出, 0.0 - 1.0
+static float thrust_max;                 // 最大电机输出
+static float thr_adj = 0.0f;             // 油门输出调整
+//在mode update函数最后,把motors->output()修改为此函数
 void static motors_output(void){
 
-	motors->output_logic();
+	motors->output_logic();//调用SDK的电机输出状态逻辑刷新
 
+	//获取PID控制环的输出结构
 	roll_thrust = motors->get_roll();
 	pitch_thrust = motors->get_pitch();
 	yaw_thrust = motors->get_yaw();
 	throttle_thrust = motors->get_throttle();
 
-    // sanity check throttle is above zero and below current limited throttle
+    //安全机制，限制控制输出
     if (throttle_thrust <= 0.001f) {
         throttle_thrust = 0.0f;
         motors->limit.throttle_lower = true;
@@ -50,11 +52,11 @@ void static motors_output(void){
         motors->limit.throttle_upper = true;
     }
 
-    // calculate left and right throttle outputs
+    //油门和滚转的混空
     _thrust_left  = throttle_thrust + roll_thrust * 0.5f;
     _thrust_right = throttle_thrust - roll_thrust * 0.5f;
 
-    // if max thrust is more than one reduce average throttle
+    //姿态控制优先级高于油门控制
     thrust_max = MAX(_thrust_right,_thrust_left);
     if (thrust_max > 1.0f) {
         thr_adj = 1.0f - thrust_max;
@@ -62,14 +64,15 @@ void static motors_output(void){
         motors->limit.roll_pitch = true;
     }
 
-    // Add adjustment to reduce average throttle
+    //调整平均油门
     _thrust_left  = constrain_float(_thrust_left  + thr_adj, 0.0f, 1.0f);
     _thrust_right = constrain_float(_thrust_right + thr_adj, 0.0f, 1.0f);
 
-    // thrust vectoring
+    //俯仰和偏航的混控
     _tilt_left  = pitch_thrust - yaw_thrust;
     _tilt_right = pitch_thrust + yaw_thrust;
 
+    //电机和舵机输出
     if(motors->get_armed()){
 		switch(motors->get_spool_mode()){
 		case motors->SHUT_DOWN:
