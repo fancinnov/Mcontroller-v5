@@ -521,6 +521,7 @@ void comm_send_data(void);//把缓冲区中的数据以非阻塞方式从MAVLINK
 extern uint8_t HeartBeatFlags;//判断EVENTBIT_HEARTBEAT_COMM_0~EVENTBIT_HEARTBEAT_COMM_4五个通道是否有心跳包接收
 
 //ADC
+void adc_init(void);
 void adc_update(void);			// 刷新全部adc数据
 float get_batt_volt(void);   	// 获取外部电池供电电压值，Unit:V
 float get_batt_current(void);	// 获取外部电池供电电流值，Unit:A

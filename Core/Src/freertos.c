@@ -307,6 +307,7 @@ void InitTask(void *argument)
   set_s2_baudrate(115200);
   set_s3_baudrate(115200);
   set_s4_baudrate(115200);
+  adc_init();
   FRAM_Init();
   update_dataflash();
   RC_Input_Init(RC_INPUT_SBUS);
